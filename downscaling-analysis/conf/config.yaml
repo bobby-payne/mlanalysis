@@ -1,0 +1,17 @@
+
+path_to_model: "/sapho/rpayne/comet_output/generator_FWI-2025-Oct29-fwi-bs32.pt"
+base_path: "/home/rpayne/data-rpayne/proc/WRF-USASK/cint/" # path in which the .zarr files are stored
+split: "test" # options: "train", "val", "test"
+subset_idxs:
+  - 5000
+  - 5100
+covariates:
+  - "tas"
+  - "uas"
+  - "vas"
+  - "psfc"
+  - "q2"
+  - "pr"
+  - "fwi"
+predictands:
+  - "fwi"
