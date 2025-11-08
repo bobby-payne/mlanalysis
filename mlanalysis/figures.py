@@ -3,26 +3,33 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 
-from .config import get_config
 
+def _save_figure(fig, filename, experiment):
 
-def _save_figure(fig, filename, dpi=150):
-
-    config = get_config()
-    path_to_output = config['path_to_output']
-    experiment_name = config['experiment_name']
-    path_to_output_full = os.path.join(path_to_output, experiment_name, filename)
+    path_to_output = experiment.path_to_output
+    experiment_name = experiment.experiment_name
+    format = experiment.output_fig_format
+    dpi = experiment.output_fig_dpi
+    path_to_output_full = os.path.join(
+        path_to_output,
+        experiment_name,
+        f"{filename}.{format}"
+    )
     os.makedirs(os.path.dirname(path_to_output_full), exist_ok=True)
 
     fig.savefig(
         path_to_output_full,
         bbox_inches='tight',
-        dpi=dpi
+        dpi=dpi,
+        format=format,
+        facecolor='white',
     )
     plt.close(fig)
 
 
-def plot_metrics(metrics_dict, dpi=150):
+def plot_metrics(experiment):
+
+    metrics_dict = experiment.metrics
 
     for i, m in enumerate(metrics_dict["train"].keys()):
 
@@ -35,6 +42,6 @@ def plot_metrics(metrics_dict, dpi=150):
             plt.ylim(top=0.11)
         plt.legend()
         plt.grid(color='gray', ls='--', lw=.5, alpha=.15, which='both')
-        _save_figure(plt.gcf(), f"training_{m}.png", dpi=dpi)
+        _save_figure(plt.gcf(), f"training_{m}", experiment)
 
     plt.close('all')

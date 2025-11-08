@@ -3,6 +3,8 @@ experiment_name: "FWI-2025-Oct29-fwi-bs32"
 path_to_experiments: "/home/rpayne/data-rpayne/trained-models/sf8/"
 path_to_zarr: "/home/rpayne/data-rpayne/proc/WRF-USASK/cint/" # path in which the .zarr files are stored
 path_to_output: "/sapho/rpayne/mlanalysis/output/" # path in which to store output figures
+output_fig_format: "png"
+output_fig_dpi: 150
 split: "test" # options: "train", "validation", "test"
 subset_idxs:
   - 5000
