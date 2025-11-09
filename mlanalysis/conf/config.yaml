@@ -9,7 +9,7 @@ split: "test" # options: "train", "validation", "test"
 subset_idxs:
   - 5000
   - 5100
-covariates:
+covariate_names:
   - "tas"
   - "uas"
   - "vas"
@@ -17,5 +17,5 @@ covariates:
   - "q2"
   - "pr"
   - "fwi"
-predictands:
+predictand_names:
   - "fwi"

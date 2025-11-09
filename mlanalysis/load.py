@@ -15,8 +15,8 @@ def load_data ():
     path_to_zarr = config['path_to_zarr']
     split = config['split']
     subset_idxs = config['subset_idxs']
-    covariate_names = config['covariates']
-    predictand_names = config['predictands']
+    covariate_names = config['covariate_names']
+    predictand_names = config['predictand_names']
 
     # Get PATHS to data (not the actual data yet)
     covariate_paths, groundtruth_paths = {}, {}
@@ -58,8 +58,8 @@ def load_min_max ():
     config = get_config()
     path_to_zarr = config['path_to_zarr']
     split = config['split']
-    covariate_names = config['covariates']
-    predictand_names = config['predictands']
+    covariate_names = config['covariate_names']
+    predictand_names = config['predictand_names']
 
     covariate_data_min_max, groundtruth_data_min_max, topography_lr_min_max, topography_hr_min_max = {}, {}, {}, {}
 
