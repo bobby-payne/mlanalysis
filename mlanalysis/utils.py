@@ -1,3 +1,18 @@
+import random
+import numpy as np
+import torch
+
+
+def set_seed(seed):
+    """Set random seed for reproducibility."""
+
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+
 
 def transpose_nested_dict(nested_dict):
     """
@@ -15,3 +30,8 @@ def transpose_nested_dict(nested_dict):
         for key2 in next(iter(nested_dict.values()))
     }
     return nested_dict_T
+
+
+def invert_feature_scaling(tensor, data_min, data_max):
+    """Undo feature scaling to get back to original data range."""
+    return tensor * (data_max - data_min) + data_min
