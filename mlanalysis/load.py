@@ -38,9 +38,11 @@ def load_data ():
     topography_hr = torch.load(path_topography_hr).float().unsqueeze(0).unsqueeze(0)
 
     for name in covariate_names:
-        covariate_data[name] = [torch.load(file).float().unsqueeze(0).unsqueeze(0) for file in covariate_paths[name]]
+        covariate_data_list = [torch.load(file).float().unsqueeze(0).unsqueeze(0) for file in covariate_paths[name]]
+        covariate_data[name] = torch.stack(covariate_data_list, axis=0)
     for name in predictand_names:
-        groundtruth_data[name] = [torch.load(file).float().unsqueeze(0).unsqueeze(0) for file in groundtruth_paths[name]]
+        groundtruth_data_list = [torch.load(file).float().unsqueeze(0).unsqueeze(0) for file in groundtruth_paths[name]]
+        groundtruth_data[name] = torch.stack(groundtruth_data_list, axis=0)
 
     # Create a list of datetimes
     datetimes = []
