@@ -64,7 +64,7 @@ class Experiment:
             else:
                 print(f"  {key} - min: {self.data_min[key]}, max: {self.data_max[key]}")
 
-    def realization(self, time_idx, seed=None):
+    def realization(self, time_idx, N_realizations, seed=None):
 
         # set seed for reproducibility
         if seed is not None:
@@ -77,12 +77,16 @@ class Experiment:
         covariate_data = self.data['covariates']
         topography_lr = self.data['topography_lr']
         topography_hr = self.data['topography_hr']
-        
+
         input_tensors_lr = [covariate_data[name][time_idx] for name in covariate_names]
         input_tensor_lr = torch.cat(input_tensors_lr + [topography_lr], dim=1).cuda()  # Concatenate along channel dimension
         input_tensor_hr = topography_hr.cuda()
+
+        downscaled_fields = []
         with torch.no_grad():
-            output_tensor = model(input_tensor_lr, input_tensor_hr)
-            downscaled_field = output_tensor.squeeze().cpu()
-        
-        return downscaled_field
+            for _ in range(N_realizations):
+                output_tensor = model(input_tensor_lr, input_tensor_hr)
+                downscaled_field = output_tensor.squeeze().cpu()
+                downscaled_fields.append(downscaled_field)
+
+        return downscaled_fields
