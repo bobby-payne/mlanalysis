@@ -4,6 +4,7 @@ import torch
 import matplotlib.pyplot as plt
 
 from .utils import set_seed
+from .spectral import get_rapsd, generate_realizations_spectra
 
 
 def _save_figure(fig, filename, experiment):
@@ -101,3 +102,66 @@ def plot_realizations(experiment, var, N, time_idx, seed=None):
     colorbar.ax.set_title(f"{var.upper()}",fontsize=ts, pad=2.5)
 
     _save_figure(fig, f"realizations_{var}_{datetime_str}", experiment)
+
+
+def plot_realizations_spectra(experiment, var, time_idx, N, seed=None):
+
+    # Generate realizations and get their spectra
+    datetime_str = experiment.timestamps[time_idx]
+    (realizations_spectra,
+     realizations_mean_spectrum,
+     bin_mids,
+     _) = generate_realizations_spectra(
+        experiment,
+        time_idx,
+        N,
+        seed=seed
+    )
+
+    # ground truth spectrum
+    groundtruth_data = experiment.data_scaled['groundtruth'][var][time_idx].squeeze()
+    groundtruth_spectrum, _, _ = get_rapsd(groundtruth_data)
+
+    # Figure constants
+    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(8., 3.))
+    ts = 6
+    tick_fs = 8*0.6
+    colors = ["royalblue"]*N + ["r", 'k']
+    alphas = [0.4]*N + [1.0, 1.0]
+    styles = ['-']*N + ['-.', '-']
+    lws = [.6]*N + [1, 0.8]
+    priority = [4]*N + [6, 5]
+    field_names = [f"Realizations (N={N})"] + [None for i in range(N-1)] + ["Realizations Mean", "Ground Truth"]
+
+    # plot
+    ax[0].set_title("Radially-Averaged Power Spectral Density", fontsize=ts*1.5)
+    ax[0].set_xlabel("Wavenumber (km$^{-1}$)", fontsize=ts)
+    ax[0].set_ylabel("Power Density (km)", fontsize=ts)
+    ax[0].grid(alpha=.3, which='major', ls='-')
+    ax[0].grid(alpha=.1, which='minor', ls='--')
+    ax[0].set_xscale('log')
+    ax[0].set_yscale('log')
+    ax[0].set_xlim(1/625, 1.5e-1)
+    ax[0].tick_params(axis='both', labelsize=tick_fs)
+    for i, spectrum in enumerate(realizations_spectra):
+        ax[0].plot(bin_mids.numpy(), spectrum.numpy(), label=field_names[i], color=colors[i], linestyle=styles[i], lw=lws[i], alpha=alphas[i], zorder=priority[i])
+    ax[0].plot(bin_mids.numpy(), realizations_mean_spectrum.numpy(), label=field_names[-2], color=colors[-2], linestyle=styles[-2], lw=lws[-2], alpha=alphas[-2], zorder=priority[-2])
+    ax[0].plot(bin_mids.numpy(), groundtruth_spectrum.numpy(), label=field_names[-1], color=colors[-1], linestyle=styles[-1], lw=lws[-1], alpha=alphas[-1], zorder=priority[-1])
+    ax[0].legend(fontsize=ts*1.1, frameon=False)
+    ax[0].text(0.015, 0.08, f'{datetime_str[:10]} at {datetime_str[11:]}00', fontsize=1.5*ts, color='red', verticalalignment='top', horizontalalignment='left', transform=ax[0].transAxes)
+
+    ax[1].set_title("Radially-Averaged Power Spectral Density (Normalized)", fontsize=ts*1.5)
+    ax[1].set_xlabel("Wavenumber (km$^{-1}$)", fontsize=ts)
+    ax[1].set_ylabel("Power Density (Normalized)", fontsize=ts)
+    ax[1].grid(alpha=.3, which='major', ls='-')
+    ax[1].grid(alpha=.1, which='minor', ls='--')
+    ax[1].set_xscale('log')
+    ax[1].set_xlim(1/625, 1.5e-1)
+    ax[1].tick_params(axis='both', labelsize=tick_fs)
+    for i, spectrum in enumerate(realizations_spectra):
+        ax[1].plot(bin_mids.numpy(), spectrum.numpy()/groundtruth_spectrum.numpy(), label=field_names[i], color=colors[i], linestyle=styles[i], lw=lws[i], alpha=alphas[i], zorder=priority[i])
+    ax[1].plot(bin_mids.numpy(), realizations_mean_spectrum.numpy()/groundtruth_spectrum.numpy(), label=field_names[-2], color=colors[-2], linestyle=styles[-2], lw=lws[-2], alpha=alphas[-2], zorder=priority[-2])
+    ax[1].plot(bin_mids.numpy(), groundtruth_spectrum.numpy()/groundtruth_spectrum.numpy(), label=field_names[-1], color=colors[-1], linestyle=styles[-1], lw=lws[-1], alpha=alphas[-1], zorder=priority[-1])
+
+    plt.tight_layout()
+    _save_figure(fig, f"realizations_spectra_{var}_{datetime_str}", experiment)

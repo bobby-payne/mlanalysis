@@ -56,7 +56,7 @@ def get_rapsd(x, d=1.0):
         raise ValueError("Input x must be a square 2D tensor")
 
     dim = x.shape[0]
-    wavenumber = wave_number_radial(dim, d=d)
+    wavenumber = get_wave_number_radial(dim, d=d)
 
     delta = wavenumber[0][1]
     freq_max = 1 / (2 * d)
@@ -66,7 +66,7 @@ def get_rapsd(x, d=1.0):
     bins_mids = 0.5 * (bins_edges[1:] + bins_edges[:-1])
     bin_counts, _ = torch.histogram(wavenumber, bins=bins_edges)
 
-    energy = power_spectrum(x)
+    energy = get_power_spectrum(x)
     bin_sums, _ = torch.histogram(wavenumber, bins=bins_edges, weight=energy)
     bin_avgs = bin_sums / bin_counts
 
@@ -83,3 +83,32 @@ def get_log_spectral_bias(ps, ps_ref):
     """Compute the log-spectral bias between two power spectra."""
     lsb = 10*torch.mean(torch.log(ps) - torch.log(ps_ref))
     return lsb
+
+
+def generate_realizations_spectra(experiment, time_idx, N_realizations, seed=None):
+    '''
+    Generate realizations and return their spectra.
+    Recommended N_realizations = 30 or higher for stable statistics.
+    Returns a tuple of:
+    (realizations_spectra, realizations_mean_spectrum, bins_mids, bin_counts)
+    '''
+    # Generate realizations
+    realizations = experiment.generate_realizations(
+        time_idx=time_idx,
+        N_realizations=N_realizations,
+        seed=seed,
+        unscale=True,
+        round_negatives=False,
+    )
+    realization_mean = (1/N_realizations)*sum(realizations)
+
+    # Compute spectra
+    realizations_spectra = []
+    for realization in realizations:
+        rapsd, _, _ = get_rapsd(realization)
+        realizations_spectra.append(rapsd)
+
+    # Append mean spectrum
+    realizations_mean_spectrum, bins_mids, bin_counts = get_rapsd(realization_mean)
+
+    return (realizations_spectra, realizations_mean_spectrum, bins_mids, bin_counts)
