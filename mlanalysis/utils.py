@@ -35,3 +35,23 @@ def transpose_nested_dict(nested_dict):
 def invert_feature_scaling(tensor, data_min, data_max):
     """Undo feature scaling to get back to original data range."""
     return tensor * (data_max - data_min) + data_min
+
+
+def compute_statistics(data, prestacked=True, axis=0):
+    """
+    Compute statistics for a data tensor over the given axis.
+    Returns the stats as a tuple in the order:
+    (mean, standard deviation, median, 1st perc., 95th perc., 99th perc.)
+    """
+
+    if not prestacked:
+        data = np.stack(data, axis=axis)
+
+    data_mean = np.nanmean(data, axis=axis)
+    data_std = np.nanstd(data, axis=axis)
+    data_median = np.nanmedian(data, axis=axis)
+    data_1p = np.nanpercentile(data, q=1, axis=axis)
+    data_95p = np.nanpercentile(data, q=95, axis=axis)
+    data_99p = np.nanpercentile(data, q=99, axis=axis)
+
+    return (data_mean, data_std, data_median, data_1p, data_95p, data_99p)
