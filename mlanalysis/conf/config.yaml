@@ -7,8 +7,10 @@ output_fig_format: "png"
 output_fig_dpi: 150
 split: "test" # options: "train", "validation", "test"
 subset_idxs:
-  - 4992
-  - 5092
+  # - 4992
+  # - 5089
+  - 2880
+  - 5856
 covariate_names:
   - "tas"
   - "uas"

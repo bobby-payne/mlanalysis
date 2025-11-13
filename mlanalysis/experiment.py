@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from functools import cached_property, lru_cache
 
 from .config import get_config
 from .load import load_data, load_min_max, load_model, load_metrics
@@ -40,7 +41,7 @@ class Experiment:
         self.model = load_model()  # The actual PyTorch model
         self.metrics = load_metrics()  # Training and validation metrics
 
-    @property
+    @cached_property
     def data_scaled(self):
         '''
         Return data with feature scaling undone.
@@ -51,26 +52,32 @@ class Experiment:
                        'topography_lr': {},
                        'topography_hr': {}}
         for name in self.data['covariates']:
+            log_transformed = True if name == 'pr' else False
             data_scaled['covariates'][name] = invert_feature_scaling(
                 self.data['covariates'][name],
                 self.data_min['covariates'][name],
-                self.data_max['covariates'][name]
+                self.data_max['covariates'][name],
+                is_log_transformed=log_transformed
             )
         for name in self.data['groundtruth']:
+            log_transformed = True if name == 'pr' else False
             data_scaled['groundtruth'][name] = invert_feature_scaling(
                 self.data['groundtruth'][name],
                 self.data_min['groundtruth'][name],
-                self.data_max['groundtruth'][name]
+                self.data_max['groundtruth'][name],
+                is_log_transformed=log_transformed
             )
         data_scaled['topography_lr'] = invert_feature_scaling(
             self.data['topography_lr'],
             self.data_min['topography_lr'],
             self.data_max['topography_lr'],
+            is_log_transformed=False
         )
         data_scaled['topography_hr'] = invert_feature_scaling(
             self.data['topography_hr'],
             self.data_min['topography_hr'],
             self.data_max['topography_hr'],
+            is_log_transformed=False
         )
         return data_scaled
 
@@ -132,11 +139,33 @@ class Experiment:
         # TODO: will need to modify if multiple predictands
         # current behaviour applies same inverse scaling to all predictands
         if unscale:
-            for i, predictand in enumerate(self.predictand_names):
+            for predictand in self.predictand_names:
+                log_transformed = True if predictand == 'pr' else False
                 downscaled_fields = invert_feature_scaling(
                     downscaled_fields,
                     self.data_min['groundtruth'][predictand],
-                    self.data_max['groundtruth'][predictand]
+                    self.data_max['groundtruth'][predictand],
+                    is_log_transformed=log_transformed,
                 )
 
         return downscaled_fields
+
+    @lru_cache(maxsize=None)
+    def generate_realization_timeseries(self, N_realizations, seed=None, unscale=True, round_negatives=False):
+        '''
+        Generate realizations for all time indices.
+        Results are cached for each unique set of arguments using functools.lru_cache.
+        Returns as a tensor with the first axis as time,
+        second axis as realization number.
+        '''
+        realizations_timeseries = []
+        for time_idx in range(len(self.timestamps)):
+            realizations = self.generate_realizations(
+                time_idx=time_idx,
+                N_realizations=N_realizations,
+                seed=seed,
+                unscale=unscale,
+                round_negatives=round_negatives,
+            )
+            realizations_timeseries.append(realizations)
+        return torch.stack(realizations_timeseries, axis=0)

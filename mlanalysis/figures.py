@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 
-from .utils import set_seed
+from .utils import set_seed, compute_daily_maximum
 from .spectral import get_rapsd, generate_realizations_spectra
 
 
@@ -165,3 +165,69 @@ def plot_realizations_spectra(experiment, var, time_idx, N, seed=None):
 
     plt.tight_layout()
     _save_figure(fig, f"realizations_spectra_{var}_{datetime_str}", experiment)
+
+
+def plot_timeseries(experiment, var, N, xy, seed=None):
+
+    x, y = (xy[0], xy[1])  # the grid point to extract time series from
+    realizations_timeseries = experiment.generate_realization_timeseries(
+        N_realizations=N,
+        seed=seed,
+        unscale=True,
+        round_negatives=False
+    )[:, :, y, x]
+    groundtruth_timeseries = experiment.data_scaled['groundtruth'][var][:, :, :, y, x].squeeze()
+
+    # Plot each realization
+    fig, ax = plt.subplots(figsize=(10, 4), dpi=200)
+    for i in range(N):
+        label = f"Realizations (N={N})" if i == 0 else None
+        ax.plot(realizations_timeseries[:, i].numpy(), label=label, color='royalblue', lw=0.6, alpha=0.4)
+    ax.plot(torch.mean(realizations_timeseries, dim=1).numpy(), label="Realizations Mean", color='red', lw=1.0, ls='--')
+    ax.plot(groundtruth_timeseries.numpy(), label="Ground Truth", color='k', lw=0.8)
+    ax.legend(fontsize=8, frameon=False)
+    ax.set_title(f"{var.upper()} Time Series at x = {x}, y = {y}", fontsize=12)
+    ax.set_ylabel(f"{var.upper()}", fontsize=10)
+    ax.grid(alpha=.3, which='major', ls='-')
+    ax.set_xlim(0, len(experiment.timestamps)-1)
+    xtick_idxs = [0, len(experiment.timestamps)//2, len(experiment.timestamps)-1]
+    ax.set_xticks(xtick_idxs)
+    ax.set_xticklabels([experiment.timestamps[i] for i in xtick_idxs])
+    plt.tight_layout()
+    _save_figure(fig, f"timeseries_{var}_x{x}y{y}", experiment)
+
+
+def plot_dailymax_timeseries(experiment, var, N, xy, seed=None):
+
+    if not experiment.timestamps[0][-2:] == '00':
+        raise ValueError("First time index does not correspond to hour 00. Time series of daily maxima cannot be computed.")
+    x, y = (xy[0], xy[1])  # the grid point to extract time series from
+    realizations_timeseries = experiment.generate_realization_timeseries(
+        N_realizations=N,
+        seed=seed,
+        unscale=True,
+        round_negatives=False
+    )[:, :, y, x]
+    realizations_timeseries = compute_daily_maximum(realizations_timeseries, axis=0)
+    groundtruth_timeseries = experiment.data_scaled['groundtruth'][var][:, :, :, y, x].squeeze()
+    groundtruth_timeseries = compute_daily_maximum(groundtruth_timeseries, axis=0)
+    N_days = realizations_timeseries.shape[0]
+
+    # Plot each realization
+    fig, ax = plt.subplots(figsize=(10, 4), dpi=200)
+    for i in range(N):
+        label = f"Realizations (N={N})" if i == 0 else None
+        ax.plot(realizations_timeseries[:, i].numpy(), label=label, color='royalblue', lw=0.6, alpha=0.4)
+    ax.plot(torch.mean(realizations_timeseries, dim=1).numpy(), label="Realizations Mean", color='red', lw=1.0, ls='--')
+    ax.plot(groundtruth_timeseries.numpy(), label="Ground Truth", color='k', lw=0.8)
+    ax.legend(fontsize=8, frameon=False)
+    ax.set_title(f"{var.upper()} Time Series at x = {x}, y = {y}", fontsize=12)
+    ax.set_ylabel(f"{var.upper()}", fontsize=10)
+    ax.grid(alpha=.3, which='major', ls='-')
+    ax.set_xlim(0, N_days-1)
+    xtick_idxs = [0, N_days//2, N_days-1]
+    print(xtick_idxs)
+    ax.set_xticks(xtick_idxs)
+    ax.set_xticklabels([experiment.timestamps[i*24][:10] for i in xtick_idxs])
+    plt.tight_layout()
+    _save_figure(fig, f"timeseries_dailymax_{var}_x{x}y{y}", experiment)
