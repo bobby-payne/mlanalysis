@@ -1,13 +1,12 @@
-import random
 import numpy as np
 import torch
+from functools import lru_cache
 
 
 def set_seed(seed):
     """Set random seed for reproducibility."""
 
     if seed is not None:
-        random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
         if torch.cuda.is_available():
@@ -61,14 +60,15 @@ def compute_statistics(data, prestacked=True, axis=0):
     return (data_mean, data_std, data_median, data_1p, data_95p, data_99p)
 
 
+@lru_cache(maxsize=None)
 def compute_daily_maximum(tensor, axis=0):
     """
     Compute the daily maximum for a given tensor over a given axis.
-    Assumes the first index of the tensor corresponds to hour 00;
+    Assumes the first entry of the time axis corresponds to hour 00;
     will give incorrect results if this is not the case.
     """
 
-    n_days = tensor.shape[0] // 24
+    n_days = tensor.shape[axis] // 24
     daily_max = []
     for day_idx in range(n_days):
         start_idx = day_idx * 24

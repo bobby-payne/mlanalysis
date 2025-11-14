@@ -85,7 +85,7 @@ def get_log_spectral_bias(ps, ps_ref):
     return lsb
 
 
-def generate_realizations_spectra(experiment, time_idx, N_realizations, seed=None):
+def generate_realizations_spectra(experiment, time_idx, N_realizations):
     '''
     Generate realizations and return their spectra.
     Recommended N_realizations = 30 or higher for stable statistics.
@@ -96,7 +96,6 @@ def generate_realizations_spectra(experiment, time_idx, N_realizations, seed=Non
     realizations = experiment.generate_realizations(
         time_idx=time_idx,
         N_realizations=N_realizations,
-        seed=seed,
         unscale=True,
         round_negatives=False,
     )

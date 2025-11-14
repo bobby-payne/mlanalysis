@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 
-from .utils import set_seed, compute_daily_maximum
+from .utils import compute_daily_maximum, compute_statistics
 from .spectral import get_rapsd, generate_realizations_spectra
 
 
@@ -50,27 +50,23 @@ def plot_metrics(experiment):
     plt.close('all')
 
 
-def plot_realizations(experiment, var, N, time_idx, seed=None):
+def plot_realizations(experiment, var, N, time_idx, vmin=0, vmax=30):
 
-    # set seed for reproducibility and choose time index if necessary
-    set_seed(seed)
+    # choose time index if necessary
     if time_idx is None:
         time_idx = np.random.randint(0, len(experiment.timestamps))
 
     # Generate realizations
     realizations = experiment.generate_realizations(time_idx=time_idx,
                                                     N_realizations=N,
-                                                    seed=seed,
                                                     unscale=True,
                                                     round_negatives=False)
     groundtruth_data = experiment.data_scaled['groundtruth']
     datetime_str = experiment.timestamps[time_idx]
 
     # Figure constants
-    fig, ax = plt.subplots(nrows=1, ncols=N+2, figsize=(8, 4), dpi=200)
+    fig, ax = plt.subplots(nrows=1, ncols=N+2, figsize=(8, 4))
     ts = 8
-    vmin = 0
-    vmax = 22
     cmap = 'viridis'
 
     # Plot the individual realizations
@@ -101,10 +97,10 @@ def plot_realizations(experiment, var, N, time_idx, seed=None):
     colorbar.ax.tick_params(labelsize=5, width=.25)
     colorbar.ax.set_title(f"{var.upper()}",fontsize=ts, pad=2.5)
 
-    _save_figure(fig, f"realizations_{var}_{datetime_str}", experiment)
+    _save_figure(fig, f"{var}_realizations_{datetime_str}", experiment)
 
 
-def plot_realizations_spectra(experiment, var, time_idx, N, seed=None):
+def plot_realizations_spectra(experiment, var, time_idx, N):
 
     # Generate realizations and get their spectra
     datetime_str = experiment.timestamps[time_idx]
@@ -115,7 +111,6 @@ def plot_realizations_spectra(experiment, var, time_idx, N, seed=None):
         experiment,
         time_idx,
         N,
-        seed=seed
     )
 
     # ground truth spectrum
@@ -164,22 +159,21 @@ def plot_realizations_spectra(experiment, var, time_idx, N, seed=None):
     ax[1].plot(bin_mids.numpy(), groundtruth_spectrum.numpy()/groundtruth_spectrum.numpy(), label=field_names[-1], color=colors[-1], linestyle=styles[-1], lw=lws[-1], alpha=alphas[-1], zorder=priority[-1])
 
     plt.tight_layout()
-    _save_figure(fig, f"realizations_spectra_{var}_{datetime_str}", experiment)
+    _save_figure(fig, f"{var}_realizations_spectra_{datetime_str}", experiment)
 
 
-def plot_timeseries(experiment, var, N, xy, seed=None):
+def plot_timeseries(experiment, var, N, xy):
 
     x, y = (xy[0], xy[1])  # the grid point to extract time series from
     realizations_timeseries = experiment.generate_realization_timeseries(
         N_realizations=N,
-        seed=seed,
         unscale=True,
         round_negatives=False
     )[:, :, y, x]
     groundtruth_timeseries = experiment.data_scaled['groundtruth'][var][:, :, :, y, x].squeeze()
 
     # Plot each realization
-    fig, ax = plt.subplots(figsize=(10, 4), dpi=200)
+    fig, ax = plt.subplots(figsize=(10, 4))
     for i in range(N):
         label = f"Realizations (N={N})" if i == 0 else None
         ax.plot(realizations_timeseries[:, i].numpy(), label=label, color='royalblue', lw=0.6, alpha=0.4)
@@ -194,17 +188,16 @@ def plot_timeseries(experiment, var, N, xy, seed=None):
     ax.set_xticks(xtick_idxs)
     ax.set_xticklabels([experiment.timestamps[i] for i in xtick_idxs])
     plt.tight_layout()
-    _save_figure(fig, f"timeseries_{var}_x{x}y{y}", experiment)
+    _save_figure(fig, f"{var}_timeseries_x{x}y{y}", experiment)
 
 
-def plot_dailymax_timeseries(experiment, var, N, xy, seed=None):
+def plot_dailymax_timeseries(experiment, var, N, xy):
 
     if not experiment.timestamps[0][-2:] == '00':
         raise ValueError("First time index does not correspond to hour 00. Time series of daily maxima cannot be computed.")
     x, y = (xy[0], xy[1])  # the grid point to extract time series from
     realizations_timeseries = experiment.generate_realization_timeseries(
         N_realizations=N,
-        seed=seed,
         unscale=True,
         round_negatives=False
     )[:, :, y, x]
@@ -214,7 +207,7 @@ def plot_dailymax_timeseries(experiment, var, N, xy, seed=None):
     N_days = realizations_timeseries.shape[0]
 
     # Plot each realization
-    fig, ax = plt.subplots(figsize=(10, 4), dpi=200)
+    fig, ax = plt.subplots(figsize=(10, 4))
     for i in range(N):
         label = f"Realizations (N={N})" if i == 0 else None
         ax.plot(realizations_timeseries[:, i].numpy(), label=label, color='royalblue', lw=0.6, alpha=0.4)
@@ -230,4 +223,89 @@ def plot_dailymax_timeseries(experiment, var, N, xy, seed=None):
     ax.set_xticks(xtick_idxs)
     ax.set_xticklabels([experiment.timestamps[i*24][:10] for i in xtick_idxs])
     plt.tight_layout()
-    _save_figure(fig, f"timeseries_dailymax_{var}_x{x}y{y}", experiment)
+    _save_figure(fig, f"{var}_timeseries_dailymax_x{x}y{y}", experiment)
+
+
+def plot_pixelwise_statistics(experiment, var, N, daily_max=False):
+
+    realizations_timeseries = experiment.generate_realization_timeseries(
+        N_realizations=N,
+        unscale=True,
+        round_negatives=False,
+    )
+    groundtruth_timeseries = experiment.data_scaled['groundtruth'][var].squeeze()
+    if daily_max:
+        realizations_timeseries = compute_daily_maximum(realizations_timeseries, axis=0)
+        groundtruth_timeseries = compute_daily_maximum(groundtruth_timeseries, axis=0)
+
+    # Compute statistics
+    (mean_field_sr,
+     std_field_sr,
+     median_field_sr,
+     _,
+     p95_field_sr,
+     p99_field_sr) = compute_statistics(realizations_timeseries, prestacked=True, axis=0)
+
+    (mean_field_gt,
+     std_field_gt,
+     median_field_gt,
+     _,
+     p95_field_gt,
+     p99_field_gt) = compute_statistics(groundtruth_timeseries, prestacked=True, axis=0)
+
+    # Average over realizations and plot statistics
+    stats = {
+        'Mean': (mean_field_sr, mean_field_gt),
+        'Standard Deviation': (std_field_sr, std_field_gt),
+        'Median': (median_field_sr, median_field_gt),
+        '95 Percentile': (p95_field_sr, p95_field_gt),
+        '99 Percentile': (p99_field_sr, p99_field_gt)
+    }
+    stats = {statname: (np.nanmean(fields[0], axis=0), fields[1]) for statname, fields in stats.items()}
+
+    cmap = 'viridis'
+    ts = 5
+    for stat_name, stat_fields in stats.items():
+
+        vmin = min(np.nanmin(stat_fields[0]), np.nanmin(stat_fields[1])).item()
+        vmax = max(np.nanmax(stat_fields[0]), np.nanmax(stat_fields[1])).item()
+        dvmin = np.nanmin(stat_fields[0] - stat_fields[1]).item()
+        dvmax = np.nanmax(stat_fields[0] - stat_fields[1]).item()
+
+        if np.abs(dvmin) < np.abs(dvmax):
+            dvmin = -dvmax
+        elif np.abs(dvmin) > np.abs(dvmax):
+            dvmax = -dvmin
+
+        fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(6, 2.5))
+        for axis in ax:
+            axis.axis('off')
+
+        if daily_max:
+            fig.suptitle(f"{stat_name.title()} Daily Maximum {var.upper()}", fontsize=ts*1.2, y=0.95)
+        else:
+            fig.suptitle(f"{stat_name.title()} {var.upper()}", fontsize=ts*1.2, y=0.95)
+        ax[0].set_title(f"Downscaled", size=ts)
+        ax[0].imshow(stat_fields[0], cmap=cmap, vmin=vmin, vmax=vmax, origin='lower')
+
+        ax[1].set_title(f"Ground Truth", size=ts)
+        plot1 = ax[1].imshow(stat_fields[1], cmap=cmap, vmin=vmin, vmax=vmax, origin='lower')
+
+        ax[2].set_title(f"Downscaled - Ground Truth",size=ts)
+        plot2 = ax[2].imshow(stat_fields[0] - stat_fields[1], cmap='RdBu_r', vmin=dvmin, vmax=dvmax, origin='lower')
+
+        # Add colorbar (using the last plotted image for the colorbar)
+        colorbar = fig.colorbar(plot1, ax=ax[:2], orientation='horizontal', pad=0.05, aspect=80)
+        colorbar.outline.set_visible(False)
+        colorbar.ax.tick_params(labelsize=ts, width=.25)
+        colorbar.ax.set_title(None)
+
+        colorbar_dif = fig.colorbar(plot2, ax=ax[2], orientation='horizontal', pad=0.05, aspect=25)
+        colorbar_dif.outline.set_visible(False)
+        colorbar_dif.ax.tick_params(labelsize=ts, width=.25) 
+        colorbar_dif.ax.set_title(None)
+
+        if daily_max:
+            _save_figure(fig, f"{var}_dailymax_pixelwise_{stat_name.lower().replace(' ', '_')}", experiment)
+        else:
+            _save_figure(fig, f"{var}_pixelwise_{stat_name.lower().replace(' ', '_')}", experiment)

@@ -1,12 +1,14 @@
 import time
 
 from .experiment import Experiment
+from .utils import set_seed
 from .figures import (
     plot_metrics,
     plot_realizations,
     plot_realizations_spectra,
     plot_timeseries,
     plot_dailymax_timeseries,
+    plot_pixelwise_statistics,
 )
 
 
@@ -16,12 +18,20 @@ start_time = time.time()
 experiment = Experiment()
 experiment.summary()
 
+# Set random seed for reproducibility
+set_seed(experiment.seed)
+
+N = 50
+loc = (84, 56)
+
 # plot training and validation metrics
-# plot_metrics(experiment)
-# plot_realizations(experiment, var='fwi', N=4, time_idx=0, seed=242)
-# plot_realizations_spectra(experiment, var='fwi', N=50, time_idx=0, seed=242)
-plot_timeseries(experiment, var='fwi', N=2, xy=(84, 56), seed=242)
-plot_dailymax_timeseries(experiment, var='fwi', N=2, xy=(84, 56), seed=242)
+plot_metrics(experiment)
+plot_realizations(experiment, var='fwi', N=4, time_idx=-1)
+plot_realizations_spectra(experiment, var='fwi', N=N, time_idx=-1)
+plot_timeseries(experiment, var='fwi', N=N, xy=loc)
+plot_dailymax_timeseries(experiment, var='fwi', N=N, xy=loc)
+plot_pixelwise_statistics(experiment, var='fwi', N=N, daily_max=False)
+plot_pixelwise_statistics(experiment, var='fwi', N=N, daily_max=True)
 
 finish_time = time.time()
 elapsed_time = finish_time - start_time

@@ -4,7 +4,7 @@ from functools import cached_property, lru_cache
 
 from .config import get_config
 from .load import load_data, load_min_max, load_model, load_metrics
-from .utils import invert_feature_scaling, set_seed
+from .utils import invert_feature_scaling
 
 
 class Experiment:
@@ -45,7 +45,6 @@ class Experiment:
     def data_scaled(self):
         '''
         Return data with feature scaling undone.
-        TODO: precip is inverted incorrectly; fix this.
         '''
         data_scaled = {'covariates': {},
                        'groundtruth': {},
@@ -107,10 +106,7 @@ class Experiment:
                 print(f"  {key} - min: {self.data_min[key]}, max: {self.data_max[key]}")
         print()
 
-    def generate_realizations(self, time_idx, N_realizations, seed=None, unscale=True, round_negatives=False):
-
-        # Set random seed for reproducibility
-        set_seed(seed)
+    def generate_realizations(self, time_idx, N_realizations, unscale=True, round_negatives=False):
 
         # Prepare input tensors
         if time_idx is None:
@@ -151,7 +147,7 @@ class Experiment:
         return downscaled_fields
 
     @lru_cache(maxsize=None)
-    def generate_realization_timeseries(self, N_realizations, seed=None, unscale=True, round_negatives=False):
+    def generate_realization_timeseries(self, N_realizations, unscale=True, round_negatives=False):
         '''
         Generate realizations for all time indices.
         Results are cached for each unique set of arguments using functools.lru_cache.
@@ -163,7 +159,6 @@ class Experiment:
             realizations = self.generate_realizations(
                 time_idx=time_idx,
                 N_realizations=N_realizations,
-                seed=seed,
                 unscale=unscale,
                 round_negatives=round_negatives,
             )
