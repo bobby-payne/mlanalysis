@@ -4,7 +4,7 @@ import torch
 import matplotlib.pyplot as plt
 
 from .utils import compute_daily_maximum, compute_statistics
-from .spectral import get_rapsd, generate_realizations_spectra
+from .spectral import get_rapsd, compute_realizations_spectra
 
 
 def _save_figure(fig, filename, experiment):
@@ -104,13 +104,18 @@ def plot_realizations_spectra(experiment, var, time_idx, N):
 
     # Generate realizations and get their spectra
     datetime_str = experiment.timestamps[time_idx]
+    realizations = experiment.generate_realizations(
+            time_idx=time_idx,
+            N_realizations=N,
+            unscale=True,
+            round_negatives=False,
+        )
     (realizations_spectra,
      realizations_mean_spectrum,
      bin_mids,
-     _) = generate_realizations_spectra(
+     _) = compute_realizations_spectra(
         experiment,
-        time_idx,
-        N,
+        realizations,
     )
 
     # ground truth spectrum
@@ -309,3 +314,79 @@ def plot_pixelwise_statistics(experiment, var, N, daily_max=False):
             _save_figure(fig, f"{var}_dailymax_pixelwise_{stat_name.lower().replace(' ', '_')}", experiment)
         else:
             _save_figure(fig, f"{var}_pixelwise_{stat_name.lower().replace(' ', '_')}", experiment)
+
+
+def plot_time_avg_spectrum(experiment, var, N, daily_max=False):
+
+    realizations_timeseries = experiment.generate_realization_timeseries(
+        N_realizations=N,
+        unscale=True,
+        round_negatives=False,
+    )
+    groundtruth_timeseries = experiment.data_scaled['groundtruth'][var].squeeze()
+    if daily_max:
+        realizations_timeseries = compute_daily_maximum(realizations_timeseries, axis=0)
+        groundtruth_timeseries = compute_daily_maximum(groundtruth_timeseries, axis=0)
+    N_time = realizations_timeseries.shape[0]
+
+    # Compute time-averaged spectra
+    spectra_realizations_all, spectra_groundtruth_all = [], []
+    for i in range(N_time):
+
+        # realization spectra, averaged over the N realizations
+        realizations_spectra = compute_realizations_spectra(
+            realizations_timeseries[i]
+            )[0]
+        spectra_realizations_all.append(torch.mean(torch.stack(realizations_spectra, axis=0), axis=0))
+
+        # ground truth spectrum
+        groundtruth_spectrum, _, _ = get_rapsd(groundtruth_timeseries[i])
+        spectra_groundtruth_all.append(groundtruth_spectrum)
+        if i == N_time - 1:
+            bin_mids = get_rapsd(groundtruth_timeseries[i])[1]
+
+    # average over all time steps
+    spectra_realizations_avg = torch.mean(torch.stack(spectra_realizations_all, axis=0), axis=0)
+    spectra_groundtruth_avg = torch.mean(torch.stack(spectra_groundtruth_all, axis=0), axis=0)
+
+    # Plot
+    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(8.,3.))
+    ts = 6
+    tick_fs = 8*0.6
+    colors = ["r", 'k']
+    alphas = [1.0, 1.0]
+    styles = ['-.', '-']
+    lws = [1, 0.8]
+    priority = [6, 5]
+
+    # plot
+    ax[0].set_title("Radially-Averaged Power Spectral Density", fontsize=ts*1.5)
+    ax[0].set_xlabel("Wavenumber (km$^{-1}$)", fontsize=ts)
+    ax[0].set_ylabel("Power Density (km)", fontsize=ts)
+    ax[0].grid(alpha=.3, which='major', ls='-')
+    ax[0].grid(alpha=.1, which='minor', ls='--')
+    ax[0].set_xscale('log')
+    ax[0].set_yscale('log')
+    ax[0].set_xlim(1/625, 1.5e-1)
+    ax[0].tick_params(axis='both', labelsize=tick_fs)
+    ax[0].plot(bin_mids[1:].numpy(), spectra_realizations_avg[1:].numpy(), label="Super-Resolved", color=colors[0], linestyle=styles[0], lw=lws[0], alpha=alphas[0], zorder=priority[0])
+    ax[0].plot(bin_mids[1:].numpy(), spectra_groundtruth_avg[1:].numpy(), label="Ground Truth", color=colors[1], linestyle=styles[1], lw=lws[1], alpha=alphas[1], zorder=priority[1])
+    ax[0].legend(fontsize=ts*1.1, frameon=False)
+
+    ax[1].set_title("Radially-Averaged Power Spectral Density (Normalized)", fontsize=ts*1.5)
+    ax[1].set_xlabel("Wavenumber (km$^{-1}$)", fontsize=ts)
+    ax[1].set_ylabel("Power Density (Normalized)", fontsize=ts)
+    ax[1].grid(alpha=.3, which='major', ls='-')
+    ax[1].grid(alpha=.1, which='minor', ls='--')
+    ax[1].set_xscale('log')
+    ax[1].set_xlim(1/625, 1.5e-1)
+    ax[1].tick_params(axis='both', labelsize=tick_fs)
+    ax[1].plot(bin_mids[1:].numpy(), spectra_realizations_avg[1:].numpy()/spectra_groundtruth_avg[1:].numpy(), label="Super-Resolved", color=colors[0], linestyle=styles[0], lw=lws[0], alpha=alphas[0], zorder=priority[0])
+    ax[1].plot(bin_mids[1:].numpy(), spectra_groundtruth_avg[1:].numpy()/spectra_groundtruth_avg[1:].numpy(), label="Ground Truth", color=colors[1], linestyle=styles[1], lw=lws[1], alpha=alphas[1], zorder=priority[1])
+    # ax[1].legend(fontsize=ts*1.1, frameon=False)
+
+    plt.tight_layout()
+    if daily_max:
+        _save_figure(fig, f"{var}_dailymax_time_avg_spectrum", experiment)
+    else:
+        _save_figure(fig, f"{var}_time_avg_spectrum", experiment)
