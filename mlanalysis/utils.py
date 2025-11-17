@@ -40,6 +40,7 @@ def invert_feature_scaling(tensor, data_min, data_max, is_log_transformed=False)
         return tensor * (data_max - data_min) + data_min
 
 
+@lru_cache(maxsize=None)
 def compute_statistics(data, prestacked=True, axis=0):
     """
     Compute statistics for a data tensor over the given axis.

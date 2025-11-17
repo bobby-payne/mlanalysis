@@ -9,6 +9,7 @@ from .figures import (
     plot_timeseries,
     plot_dailymax_timeseries,
     plot_pixelwise_statistics,
+    plot_pixelwise_statistics_histogram,
     plot_time_avg_spectrum,
 )
 
@@ -22,7 +23,7 @@ experiment.summary()
 # Set random seed for reproducibility
 set_seed(experiment.seed)
 
-N = 50
+N = 1
 loc = (84, 56)
 
 # plot training and validation metrics
@@ -33,6 +34,8 @@ loc = (84, 56)
 # plot_dailymax_timeseries(experiment, var='fwi', N=N, xy=loc)
 # plot_pixelwise_statistics(experiment, var='fwi', N=N, daily_max=False)
 # plot_pixelwise_statistics(experiment, var='fwi', N=N, daily_max=True)
+# plot_pixelwise_statistics_histogram(experiment, var='fwi', N=N, daily_max=False)
+# plot_pixelwise_statistics_histogram(experiment, var='fwi', N=N, daily_max=True)
 plot_time_avg_spectrum(experiment, var='fwi', N=N, daily_max=False)
 plot_time_avg_spectrum(experiment, var='fwi', N=N, daily_max=True)
 

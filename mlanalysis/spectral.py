@@ -85,15 +85,15 @@ def get_log_spectral_bias(ps, ps_ref):
     return lsb
 
 
-def compute_realizations_spectra(realizations):
+def compute_realizations_spectra(realizations, d=1.0):
     # Compute spectra
     realizations_spectra = []
     for realization in realizations:
-        rapsd, _, _ = get_rapsd(realization)
+        rapsd, _, _ = get_rapsd(realization, d=d)
         realizations_spectra.append(rapsd)
 
     # Append spectrum of mean realization (NOT the mean of the spectra)
     realization_mean = (1/realizations.shape[0]) * torch.sum(realizations, axis=0)
-    realizations_mean_spectrum, bins_mids, bin_counts = get_rapsd(realization_mean)
+    realizations_mean_spectrum, bins_mids, bin_counts = get_rapsd(realization_mean, d=d)
 
     return (realizations_spectra, realizations_mean_spectrum, bins_mids, bin_counts)

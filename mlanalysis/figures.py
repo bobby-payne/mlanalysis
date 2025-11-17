@@ -316,6 +316,104 @@ def plot_pixelwise_statistics(experiment, var, N, daily_max=False):
             _save_figure(fig, f"{var}_pixelwise_{stat_name.lower().replace(' ', '_')}", experiment)
 
 
+def plot_pixelwise_statistics_histogram(experiment, var, N, daily_max=False):
+
+    realizations_timeseries = experiment.generate_realization_timeseries(
+        N_realizations=N,
+        unscale=True,
+        round_negatives=False,
+    )
+    groundtruth_timeseries = experiment.data_scaled['groundtruth'][var].squeeze()
+    if daily_max:
+        realizations_timeseries = compute_daily_maximum(realizations_timeseries, axis=0)
+        groundtruth_timeseries = compute_daily_maximum(groundtruth_timeseries, axis=0)
+
+    # Compute statistics
+    (mean_field_sr,
+     std_field_sr,
+     median_field_sr,
+     p1_field_sr,
+     p95_field_sr,
+     p99_field_sr) = compute_statistics(realizations_timeseries, prestacked=True, axis=0)
+
+    (mean_field_gt,
+     std_field_gt,
+     median_field_gt,
+     p1_field_gt,
+     p95_field_gt,
+     p99_field_gt) = compute_statistics(groundtruth_timeseries, prestacked=True, axis=0)
+
+    # Average over realizations and plot statistics
+    stats = {
+        'Mean': (mean_field_sr, mean_field_gt),
+        'Standard Deviation': (std_field_sr, std_field_gt),
+        'Median': (median_field_sr, median_field_gt),
+        '1 Percentile': (p1_field_sr, p1_field_gt),
+        '95 Percentile': (p95_field_sr, p95_field_gt),
+        '99 Percentile': (p99_field_sr, p99_field_gt)
+    }
+
+    fig, ax = plt.subplots(nrows=2, ncols=3, figsize=(8,4),dpi=200)
+    ts = 5
+    nbins=200
+
+    statname = 'Mean'
+    bins = np.linspace(stats[statname][1].min(), stats[statname][1].max(), nbins)
+    ax[0,0].hist(stats[statname][1].flatten(), bins=bins, alpha=0.5, label='HR Truth (WRF)', density=0)
+    ax[0,0].hist(stats[statname][0].flatten(), bins=bins, alpha=0.5, label='HR Downscaled', color='orange', density=0)
+    ax[0,0].set_title(statname, size=ts)
+
+    statname = 'Median'
+    bins = np.linspace(stats[statname][1].min(), stats[statname][1].max(), nbins)
+    ax[0,1].hist(stats[statname][1].flatten(), bins=bins, alpha=0.5, label='HR Truth (WRF)', density=0)
+    ax[0,1].hist(stats[statname][0].flatten(), bins=bins, alpha=0.5, label='HR Downscaled', color='orange', density=0)
+    ax[0,1].set_title(statname, size=ts)
+
+    statname = "Standard Deviation"
+    bins = np.linspace(stats[statname][1].min(), stats[statname][1].max(), nbins)
+    ax[0,2].hist(stats[statname][1].flatten(), bins=bins, alpha=0.5, label='HR Truth (WRF)', density=0)
+    ax[0,2].hist(stats[statname][0].flatten(), bins=bins, alpha=0.5, label='HR Downscaled', color='orange', density=0)
+    ax[0,2].set_title(statname, size=ts)
+
+    statname = "1 Percentile"
+    bins = np.linspace(stats[statname][1].min(), stats[statname][1].max(), nbins)
+    ax[1,0].hist(stats[statname][1].flatten(), bins=bins, alpha=0.5, label='HR Truth (WRF)', density=0)
+    ax[1,0].hist(stats[statname][0].flatten(), bins=bins, alpha=0.5, label='HR Downscaled', color='orange', density=0)
+    ax[1,0].set_title(statname, size=ts)
+
+    statname = "95 Percentile"
+    bins = np.linspace(stats[statname][1].min(), stats[statname][1].max(), nbins)
+    ax[1,1].hist(stats[statname][1].flatten(), bins=bins, alpha=0.5, label='HR Truth (WRF)', density=0)
+    ax[1,1].hist(stats[statname][0].flatten(), bins=bins, alpha=0.5, label='HR Downscaled', color='orange', density=0)
+    ax[1,1].set_title(statname, size=ts)
+
+    statname = "99 Percentile"
+    bins = np.linspace(stats[statname][1].min(), stats[statname][1].max(), nbins)
+    ax[1,2].hist(stats[statname][1].flatten(), bins=bins, alpha=0.5, label='HR Truth (WRF)', density=0)
+    ax[1,2].hist(stats[statname][0].flatten(), bins=bins, alpha=0.5, label='HR Downscaled', color='orange', density=0)
+    ax[1,2].set_title(statname, size=ts)
+
+    subtitle = f"Daily Maximum {var.upper()}" if daily_max else var.upper()
+    fig.suptitle(f"Spatial Distributions of Pixelwise Summary Statistics\n({subtitle})", fontsize=8, fontweight='bold', y=0.98)
+
+    for i,axes in enumerate(ax.flat):
+        if i == 0:
+            axes.legend(fontsize=5, frameon=False, loc='upper right')
+        else:
+            axes.legend(fontsize=5, frameon=False)
+        axes.tick_params(axis='both', which='major', labelsize=3.5)
+        axes.title.set_fontweight('bold')
+        if not i == 0:
+            axes.set_xlabel(var.upper(), size=.7*ts)
+
+    plt.subplots_adjust(hspace=0.34, wspace=0.14)
+
+    if daily_max:
+        _save_figure(fig, f"{var}_dailymax_pixelwise_histogram", experiment)
+    else:
+        _save_figure(fig, f"{var}_pixelwise_histogram", experiment)
+
+
 def plot_time_avg_spectrum(experiment, var, N, daily_max=False):
 
     realizations_timeseries = experiment.generate_realization_timeseries(
@@ -335,15 +433,16 @@ def plot_time_avg_spectrum(experiment, var, N, daily_max=False):
 
         # realization spectra, averaged over the N realizations
         realizations_spectra = compute_realizations_spectra(
-            realizations_timeseries[i]
+            realizations_timeseries[i],
+            d=4.0,
             )[0]
         spectra_realizations_all.append(torch.mean(torch.stack(realizations_spectra, axis=0), axis=0))
 
         # ground truth spectrum
-        groundtruth_spectrum, _, _ = get_rapsd(groundtruth_timeseries[i])
+        groundtruth_spectrum, _, _ = get_rapsd(groundtruth_timeseries[i], d=4.0)
         spectra_groundtruth_all.append(groundtruth_spectrum)
         if i == N_time - 1:
-            bin_mids = get_rapsd(groundtruth_timeseries[i])[1]
+            bin_mids = get_rapsd(groundtruth_timeseries[i], d=4.0)[1]
 
     # average over all time steps
     spectra_realizations_avg = torch.mean(torch.stack(spectra_realizations_all, axis=0), axis=0)
