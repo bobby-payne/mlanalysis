@@ -54,12 +54,11 @@ def compute_statistics(data, prestacked=True, axis=0):
     data_mean = np.nanmean(data, axis=axis)
     data_std = np.nanstd(data, axis=axis)
     data_median = np.nanmedian(data, axis=axis)
-    data_1p = np.nanpercentile(data, q=1, axis=axis)
+    data_5p = np.nanpercentile(data, q=5, axis=axis)
     data_95p = np.nanpercentile(data, q=95, axis=axis)
     data_99p = np.nanpercentile(data, q=99, axis=axis)
 
-    return (data_mean, data_std, data_median, data_1p, data_95p, data_99p)
-
+    return (data_mean, data_std, data_median, data_5p, data_95p, data_99p)
 
 @lru_cache(maxsize=None)
 def compute_daily_maximum(tensor, axis=0):

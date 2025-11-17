@@ -236,7 +236,7 @@ def plot_pixelwise_statistics(experiment, var, N, daily_max=False):
     realizations_timeseries = experiment.generate_realization_timeseries(
         N_realizations=N,
         unscale=True,
-        round_negatives=False,
+        round_negatives=True,
     )
     groundtruth_timeseries = experiment.data_scaled['groundtruth'][var].squeeze()
     if daily_max:
@@ -321,7 +321,7 @@ def plot_pixelwise_statistics_histogram(experiment, var, N, daily_max=False):
     realizations_timeseries = experiment.generate_realization_timeseries(
         N_realizations=N,
         unscale=True,
-        round_negatives=False,
+        round_negatives=True,
     )
     groundtruth_timeseries = experiment.data_scaled['groundtruth'][var].squeeze()
     if daily_max:
@@ -332,71 +332,45 @@ def plot_pixelwise_statistics_histogram(experiment, var, N, daily_max=False):
     (mean_field_sr,
      std_field_sr,
      median_field_sr,
-     p1_field_sr,
+     p5_field_sr,
      p95_field_sr,
      p99_field_sr) = compute_statistics(realizations_timeseries, prestacked=True, axis=0)
 
     (mean_field_gt,
      std_field_gt,
      median_field_gt,
-     p1_field_gt,
+     p5_field_gt,
      p95_field_gt,
      p99_field_gt) = compute_statistics(groundtruth_timeseries, prestacked=True, axis=0)
 
-    # Average over realizations and plot statistics
     stats = {
         'Mean': (mean_field_sr, mean_field_gt),
         'Standard Deviation': (std_field_sr, std_field_gt),
         'Median': (median_field_sr, median_field_gt),
-        '1 Percentile': (p1_field_sr, p1_field_gt),
+        '5 Percentile': (p5_field_sr, p5_field_gt),
         '95 Percentile': (p95_field_sr, p95_field_gt),
         '99 Percentile': (p99_field_sr, p99_field_gt)
     }
 
-    fig, ax = plt.subplots(nrows=2, ncols=3, figsize=(8,4),dpi=200)
+    # Plot statistics
+    fig, ax = plt.subplots(nrows=2, ncols=3, figsize=(8, 4), dpi=200)
     ts = 5
-    nbins=200
+    nbins = 200
 
-    statname = 'Mean'
-    bins = np.linspace(stats[statname][1].min(), stats[statname][1].max(), nbins)
-    ax[0,0].hist(stats[statname][1].flatten(), bins=bins, alpha=0.5, label='HR Truth (WRF)', density=0)
-    ax[0,0].hist(stats[statname][0].flatten(), bins=bins, alpha=0.5, label='HR Downscaled', color='orange', density=0)
-    ax[0,0].set_title(statname, size=ts)
+    for i, axis in enumerate(ax.flat):
 
-    statname = 'Median'
-    bins = np.linspace(stats[statname][1].min(), stats[statname][1].max(), nbins)
-    ax[0,1].hist(stats[statname][1].flatten(), bins=bins, alpha=0.5, label='HR Truth (WRF)', density=0)
-    ax[0,1].hist(stats[statname][0].flatten(), bins=bins, alpha=0.5, label='HR Downscaled', color='orange', density=0)
-    ax[0,1].set_title(statname, size=ts)
-
-    statname = "Standard Deviation"
-    bins = np.linspace(stats[statname][1].min(), stats[statname][1].max(), nbins)
-    ax[0,2].hist(stats[statname][1].flatten(), bins=bins, alpha=0.5, label='HR Truth (WRF)', density=0)
-    ax[0,2].hist(stats[statname][0].flatten(), bins=bins, alpha=0.5, label='HR Downscaled', color='orange', density=0)
-    ax[0,2].set_title(statname, size=ts)
-
-    statname = "1 Percentile"
-    bins = np.linspace(stats[statname][1].min(), stats[statname][1].max(), nbins)
-    ax[1,0].hist(stats[statname][1].flatten(), bins=bins, alpha=0.5, label='HR Truth (WRF)', density=0)
-    ax[1,0].hist(stats[statname][0].flatten(), bins=bins, alpha=0.5, label='HR Downscaled', color='orange', density=0)
-    ax[1,0].set_title(statname, size=ts)
-
-    statname = "95 Percentile"
-    bins = np.linspace(stats[statname][1].min(), stats[statname][1].max(), nbins)
-    ax[1,1].hist(stats[statname][1].flatten(), bins=bins, alpha=0.5, label='HR Truth (WRF)', density=0)
-    ax[1,1].hist(stats[statname][0].flatten(), bins=bins, alpha=0.5, label='HR Downscaled', color='orange', density=0)
-    ax[1,1].set_title(statname, size=ts)
-
-    statname = "99 Percentile"
-    bins = np.linspace(stats[statname][1].min(), stats[statname][1].max(), nbins)
-    ax[1,2].hist(stats[statname][1].flatten(), bins=bins, alpha=0.5, label='HR Truth (WRF)', density=0)
-    ax[1,2].hist(stats[statname][0].flatten(), bins=bins, alpha=0.5, label='HR Downscaled', color='orange', density=0)
-    ax[1,2].set_title(statname, size=ts)
+        statname = list(stats.keys())[i]
+        min_val = np.nanmin([stats[statname][0].min(), stats[statname][1].min()])
+        max_val = np.nanmax([stats[statname][0].max(), stats[statname][1].max()])
+        bins = np.linspace(min_val, max_val, nbins)
+        axis.hist(stats[statname][1].flatten(), bins=bins, alpha=0.5, label='HR Truth (WRF)', density=0)
+        axis.hist(stats[statname][0].flatten(), bins=bins, alpha=0.5, label='HR Downscaled', color='orange', density=0)
+        axis.set_title(statname, size=ts)
 
     subtitle = f"Daily Maximum {var.upper()}" if daily_max else var.upper()
     fig.suptitle(f"Spatial Distributions of Pixelwise Summary Statistics\n({subtitle})", fontsize=8, fontweight='bold', y=0.98)
 
-    for i,axes in enumerate(ax.flat):
+    for i, axes in enumerate(ax.flat):
         if i == 0:
             axes.legend(fontsize=5, frameon=False, loc='upper right')
         else:
