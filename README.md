@@ -4,3 +4,4 @@ Simply edit the config with your paths and configuration details and then run
 ```python
 python -m mlanalysis
 ```
+(The `-m` flag tells Python to run the module as a script.)
