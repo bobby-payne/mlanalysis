@@ -1,4 +1,5 @@
 import time
+import gc
 
 from .experiment import Experiment
 from .utils import set_seed
@@ -11,6 +12,7 @@ from .figures import (
     plot_pixelwise_statistics,
     plot_pixelwise_statistics_histogram,
     plot_time_avg_spectrum,
+    plot_spectrogram,
 )
 
 
@@ -34,12 +36,15 @@ loc = (84, 56)
 # plot_dailymax_timeseries(experiment, var='fwi', N=N, xy=loc)
 # plot_pixelwise_statistics(experiment, var='fwi', N=N, daily_max=False)
 # plot_pixelwise_statistics(experiment, var='fwi', N=N, daily_max=True)
-plot_pixelwise_statistics_histogram(experiment, var='fwi', N=N, daily_max=False)
-plot_pixelwise_statistics_histogram(experiment, var='fwi', N=N, daily_max=True)
+# plot_pixelwise_statistics_histogram(experiment, var='fwi', N=N, daily_max=False)
+# plot_pixelwise_statistics_histogram(experiment, var='fwi', N=N, daily_max=True)
 # plot_time_avg_spectrum(experiment, var='fwi', N=N, daily_max=False)
 # plot_time_avg_spectrum(experiment, var='fwi', N=N, daily_max=True)
+plot_spectrogram(experiment, var='fwi', N=N, daily_max=False)
+plot_spectrogram(experiment, var='fwi', N=N, daily_max=True)
 
 
+gc.collect()
 finish_time = time.time()
 elapsed_time = finish_time - start_time
 print(f"Finished in {elapsed_time/60:.2f} minutes.")

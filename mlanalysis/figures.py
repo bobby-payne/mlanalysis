@@ -2,6 +2,7 @@ import os
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 
 from .utils import compute_daily_maximum, compute_statistics
 from .spectral import get_rapsd, compute_realizations_spectra
@@ -463,3 +464,85 @@ def plot_time_avg_spectrum(experiment, var, N, daily_max=False):
         _save_figure(fig, f"{var}_dailymax_time_avg_spectrum", experiment)
     else:
         _save_figure(fig, f"{var}_time_avg_spectrum", experiment)
+
+
+def plot_spectrogram(experiment, var, N, daily_max=False):
+
+    realizations_timeseries = experiment.generate_realization_timeseries(
+        N_realizations=N,
+        unscale=True,
+        round_negatives=False,
+    )
+    groundtruth_timeseries = experiment.data_scaled['groundtruth'][var].squeeze()
+    if daily_max:
+        realizations_timeseries = compute_daily_maximum(realizations_timeseries, axis=0)
+        groundtruth_timeseries = compute_daily_maximum(groundtruth_timeseries, axis=0)
+    N_time = realizations_timeseries.shape[0]
+
+    # Compute spectra
+    spectra_realizations_all, spectra_groundtruth_all = [], []
+    for i in range(N_time):
+
+        # realization spectra, averaged over the N realizations
+        realizations_spectra = compute_realizations_spectra(
+            realizations_timeseries[i],
+            d=4.0,
+            )[0]
+        spectra_realizations_all.append(torch.mean(torch.stack(realizations_spectra, axis=0), axis=0))
+
+        # ground truth spectrum
+        groundtruth_spectrum, _, _ = get_rapsd(groundtruth_timeseries[i], d=4.0)
+        spectra_groundtruth_all.append(groundtruth_spectrum)
+
+    # Plot
+    datetime_monthstart_idxs = []
+    for i, datetime in enumerate(experiment.timestamps):
+        if datetime[-5:] == '01-00':
+            if daily_max:
+                datetime_monthstart_idxs.append(i // 24)
+            else:
+                datetime_monthstart_idxs.append(i)
+
+    fig, ax = plt.subplots(nrows=3, ncols=1, figsize=(14, 8), dpi=150, sharex=True)
+    plt.subplots_adjust(hspace=0.)
+    cmap = 'magma'
+    spectra_realizations_all_numpy = torch.stack(spectra_realizations_all, axis=0).numpy().T
+    spectra_groundtruth_all_numpy = torch.stack(spectra_groundtruth_all, axis=0).numpy().T
+    min_val = min(spectra_realizations_all_numpy[1:].min(), spectra_groundtruth_all_numpy[1:].min())
+    max_val = max(spectra_realizations_all_numpy[1:].max(), spectra_groundtruth_all_numpy[1:].max())
+    print(spectra_groundtruth_all_numpy[1:].shape, spectra_realizations_all_numpy[1:].shape)
+
+    ax[0].set_title("Spectrogram of Radially-Averaged Power Spectral Density", fontsize=8)
+    plot0 = ax[0].imshow(spectra_realizations_all_numpy[1:], aspect='auto', origin='lower', cmap=cmap, norm=LogNorm(vmin=min_val, vmax=max_val))
+    ax[0].set_ylabel("Wavenumber (cycles)", fontsize=7)
+    ax[0].set_xticks(datetime_monthstart_idxs)
+    ax[0].text(0.99, 0.95, "Super-Resolved", fontsize=14, color='w', verticalalignment='top', horizontalalignment='right', transform=ax[0].transAxes)
+
+    ax[1].imshow(spectra_groundtruth_all_numpy[1:], aspect='auto', origin='lower', cmap=cmap, norm=LogNorm(vmin=min_val, vmax=max_val))
+    ax[1].set_ylabel("Wavenumber (cycles)", fontsize=7)
+    ax[1].set_xticks(datetime_monthstart_idxs)
+    ax[1].text(0.99, 0.95, "Ground Truth", fontsize=14, color='w', verticalalignment='top', horizontalalignment='right', transform=ax[1].transAxes)
+
+    plot2 = ax[2].imshow(10*np.log10(spectra_realizations_all_numpy[1:]) - 10*np.log10(spectra_groundtruth_all_numpy[1:]), aspect='auto', origin='lower', cmap='RdBu_r', vmin=-10, vmax=10)
+    ax[2].set_ylabel("Wavenumber (cycles)", fontsize=7)
+    ax[2].set_xticks(datetime_monthstart_idxs)
+    if daily_max:
+        ax[2].set_xticklabels([experiment.timestamps[i*24][:-3] for i in datetime_monthstart_idxs], rotation=30, fontsize=6)
+    else:
+        ax[2].set_xticklabels([experiment.timestamps[i][:-3] for i in datetime_monthstart_idxs], rotation=30, fontsize=6)
+
+    ylabels = np.append([0], np.arange(0, spectra_realizations_all_numpy.shape[0], 8) + 6, axis=0)
+    for a in ax:
+        a.set_yticks(ylabels)
+        a.set_yticklabels(ylabels+1, fontsize=6)
+
+    cbar0 = fig.colorbar(plot0, ax=ax[:2], orientation='vertical', label='Power Density (km)', pad=0.003, shrink=0.995, aspect=39)
+    cbar0.ax.tick_params(labelsize=6, width=.25)
+
+    cbar1 = fig.colorbar(plot2, ax=ax[2], orientation='vertical', label='Power Density Difference (dB)', pad=0.003, shrink=0.995)
+    cbar1.ax.tick_params(labelsize=6, width=.25)
+
+    if daily_max:
+        _save_figure(fig, f"{var}_dailymax_spectrogram", experiment)
+    else:
+        _save_figure(fig, f"{var}_spectrogram", experiment)
