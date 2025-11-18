@@ -4,7 +4,7 @@ import torch
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 
-from .utils import compute_daily_maximum, compute_statistics
+from .utils import compute_daily_maximum, compute_statistics, compute_ranks
 from .spectral import get_rapsd, compute_realizations_spectra
 
 
@@ -115,13 +115,13 @@ def plot_realizations_spectra(experiment, var, time_idx, N):
      realizations_mean_spectrum,
      bin_mids,
      _) = compute_realizations_spectra(
-        experiment,
         realizations,
+        d=4.0,
     )
 
     # ground truth spectrum
     groundtruth_data = experiment.data_scaled['groundtruth'][var][time_idx].squeeze()
-    groundtruth_spectrum, _, _ = get_rapsd(groundtruth_data)
+    groundtruth_spectrum, _, _ = get_rapsd(groundtruth_data, d=4.0)
 
     # Figure constants
     fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(8., 3.))
@@ -230,6 +230,32 @@ def plot_dailymax_timeseries(experiment, var, N, xy):
     ax.set_xticklabels([experiment.timestamps[i*24][:10] for i in xtick_idxs])
     plt.tight_layout()
     _save_figure(fig, f"{var}_timeseries_dailymax_x{x}y{y}", experiment)
+
+
+def plot_rank_histogram(experiment, var, N, xy, daily_max=False):
+
+    x, y = (xy[0], xy[1])  # the grid point to extract time series from
+    realizations_timeseries = experiment.generate_realization_timeseries(
+        N_realizations=N,
+        unscale=True,
+        round_negatives=False
+    )[:, :, y, x]
+    groundtruth_timeseries = experiment.data_scaled['groundtruth'][var][:, :, :, y, x].squeeze()
+    if daily_max:
+        realizations_timeseries = compute_daily_maximum(realizations_timeseries, axis=0)
+        groundtruth_timeseries = compute_daily_maximum(groundtruth_timeseries, axis=0)
+    ranks = compute_ranks(realizations_timeseries, groundtruth_timeseries, time_dim=0)
+
+    # plot
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(5,5), dpi=100)
+    ax.hist(ranks/max(ranks), bins=np.linspace(0,1,21), color='navy', alpha=.5, rwidth=.9)
+    ax.set_xlabel("Normalized Rank", fontsize=8)
+    ax.set_title("Rank Histogram for x={}, y={}".format(x, y), fontsize=10)
+    # ax.set_yticks(np.arange(0,20,2))
+    if daily_max:
+        _save_figure(fig, f"{var}_dailymax_rank_histogram_x{x}y{y}", experiment)
+    else:
+        _save_figure(fig, f"{var}_rank_histogram_x{x}y{y}", experiment)
 
 
 def plot_pixelwise_statistics(experiment, var, N, daily_max=False):

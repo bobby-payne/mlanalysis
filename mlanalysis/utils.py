@@ -77,3 +77,18 @@ def compute_daily_maximum(tensor, axis=0):
         daily_max.append(torch.max(daily_slice, dim=axis).values)
     daily_max = torch.stack(daily_max, dim=axis)
     return daily_max
+
+
+def compute_ranks(tensor_realizations, tensor_groundtruth, time_dim=0):
+
+    assert tensor_realizations.shape.__len__() == 2, "Realizations tensor must be 2D."
+    assert tensor_groundtruth.shape.__len__() == 1, "Ground truth tensor must be 1D."
+
+    if time_dim == 1:
+        tensor_realizations = tensor_realizations.T
+    n_ranks = tensor_realizations.shape[0]
+
+    # Ranks of ties are averaged
+    ranks_lower = torch.stack([torch.sum(tensor_groundtruth[i] > tensor_realizations[i]) + 1 for i in range(n_ranks)])
+    ranks_upper = torch.stack([torch.sum(tensor_groundtruth[i] >= tensor_realizations[i]) + 1 for i in range(n_ranks)])
+    return (ranks_lower + ranks_upper) / 2
