@@ -80,6 +80,14 @@ class Experiment:
         )
         return data_scaled
 
+    @cached_property
+    def scale_factor(self):
+        '''
+        Return scale factor between LR and HR resolution.
+        Assumes same scale factor along x and y directions.
+        '''
+        return self.data['topography_hr'].shape[-1] // self.data['topography_lr'].shape[-1]
+
     def summary(self):
 
         print("\nExperiment Summary:")
