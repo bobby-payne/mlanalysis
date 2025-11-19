@@ -29,25 +29,29 @@ set_seed(experiment.seed)
 if experiment.which_gpu is not None:
     subprocess.run(["export", f"CUDA_VISIBLE_DEVICES={experiment.which_gpu}"], shell=True)
 
-N = 50
-loc = (84, 56)
-
-# plot training and validation metrics
+# Produce plots
+N = experiment.n_realizations
 plot_metrics(experiment)
-plot_realizations(experiment, var='fwi', N=4, time_idx=-1)
-plot_realizations_spectra(experiment, var='fwi', N=N, time_idx=-1)
-plot_timeseries(experiment, var='fwi', N=N, xy=loc)
-plot_dailymax_timeseries(experiment, var='fwi', N=N, xy=loc)
-plot_rank_histogram(experiment, var='fwi', N=N, xy=loc, daily_max=False)
-plot_rank_histogram(experiment, var='fwi', N=N, xy=loc, daily_max=True)
-plot_pixelwise_statistics(experiment, var='fwi', N=N, daily_max=False)
-plot_pixelwise_statistics(experiment, var='fwi', N=N, daily_max=True)
-plot_pixelwise_statistics_histogram(experiment, var='fwi', N=N, daily_max=False)
-plot_pixelwise_statistics_histogram(experiment, var='fwi', N=N, daily_max=True)
-plot_time_avg_spectrum(experiment, var='fwi', N=N, daily_max=False)
-plot_time_avg_spectrum(experiment, var='fwi', N=N, daily_max=True)
-plot_spectrogram(experiment, var='fwi', N=N, daily_max=False)
-plot_spectrogram(experiment, var='fwi', N=N, daily_max=True)
+
+for var in experiment.predictand_names:
+
+    plot_realizations(experiment, var=var, N=4, time_idx=-1)
+    plot_realizations_spectra(experiment, var=var, N=N, time_idx=-1)
+    plot_pixelwise_statistics(experiment, var=var, N=N, daily_max=False)
+    plot_pixelwise_statistics(experiment, var=var, N=N, daily_max=True)
+    plot_pixelwise_statistics_histogram(experiment, var=var, N=N, daily_max=False)
+    plot_pixelwise_statistics_histogram(experiment, var=var, N=N, daily_max=True)
+    plot_time_avg_spectrum(experiment, var=var, N=N, daily_max=False)
+    plot_time_avg_spectrum(experiment, var=var, N=N, daily_max=True)
+    plot_spectrogram(experiment, var=var, N=N, daily_max=False)
+    plot_spectrogram(experiment, var=var, N=N, daily_max=True)
+
+    for loc in experiment.loc_idxs:  # Location-specific plots
+
+        plot_timeseries(experiment, var=var, N=N, xy=loc)
+        plot_dailymax_timeseries(experiment, var=var, N=N, xy=loc)
+        plot_rank_histogram(experiment, var=var, N=N, xy=loc, daily_max=False)
+        plot_rank_histogram(experiment, var=var, N=N, xy=loc, daily_max=True)
 
 
 gc.collect()

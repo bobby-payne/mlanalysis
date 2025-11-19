@@ -7,10 +7,13 @@ output_fig_format: "png"
 output_fig_dpi: 150
 split: "test" # options: "train", "validation", "test"
 seed: 242
+n_realizations: 50
 which_gpu: 0
 subset_idxs:
   - 2880
   - 5856
+loc_idxs:
+  - [84, 56]
 covariate_names:
   - "tas"
   - "uas"
