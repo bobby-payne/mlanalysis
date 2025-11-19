@@ -1,5 +1,6 @@
 import time
 import gc
+import subprocess
 
 from .experiment import Experiment
 from .utils import set_seed
@@ -23,8 +24,10 @@ start_time = time.time()
 experiment = Experiment()
 experiment.summary()
 
-# Set random seed for reproducibility
+# Set random seed for reproducibility & select visible GPU
 set_seed(experiment.seed)
+if experiment.which_gpu is not None:
+    subprocess.run(["export", f"CUDA_VISIBLE_DEVICES={experiment.which_gpu}"], shell=True)
 
 N = 50
 loc = (84, 56)

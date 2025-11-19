@@ -378,6 +378,7 @@ def plot_pixelwise_statistics_histogram(experiment, var, N, daily_max=False):
         '95 Percentile': (p95_field_sr, p95_field_gt),
         '99 Percentile': (p99_field_sr, p99_field_gt)
     }
+    stats = {statname: (np.nanmean(fields[0], axis=0), fields[1]) for statname, fields in stats.items()}
 
     # Plot statistics
     fig, ax = plt.subplots(nrows=2, ncols=3, figsize=(8, 4), dpi=200)
