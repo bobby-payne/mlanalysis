@@ -36,11 +36,12 @@ def main():
         # Set random seed for reproducibility
         set_seed(get_config()['seed'])
 
-        # plot the training and validation metrics
+        # Plot the training and validation metrics
         experiment = Experiment()
         experiment.summary()
 
-        # Produce plots
+        # Generate plots
+        print("Generating plots...")
         N = experiment.n_realizations
         plot_metrics(experiment)
 
