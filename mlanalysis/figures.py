@@ -177,6 +177,14 @@ def plot_timeseries(experiment, var, N, xy):
         round_negatives=False
     )[:, :, y, x]
     groundtruth_timeseries = experiment.data_scaled['groundtruth'][var][:, :, :, y, x].squeeze()
+    sf = experiment.scale_factor
+    try:
+        covariate_timeseries = experiment.data_scaled['covariates'][var][:, :, :, y//sf, x//sf].squeeze()
+    except KeyError:
+        try:
+            covariate_timeseries = experiment.data_scaled['covariates'][var + '_c'][:, :, :, y//sf, x//sf].squeeze()
+        except KeyError:
+            covariate_timeseries = None
 
     # Plot each realization
     fig, ax = plt.subplots(figsize=(10, 4))
@@ -184,6 +192,8 @@ def plot_timeseries(experiment, var, N, xy):
         label = f"Realizations (N={N})" if i == 0 else None
         ax.plot(realizations_timeseries[:, i].numpy(), label=label, color='royalblue', lw=0.6, alpha=0.4)
     ax.plot(torch.mean(realizations_timeseries, dim=1).numpy(), label="Realizations Mean", color='red', lw=1.0, ls='--')
+    if covariate_timeseries is not None:
+        ax.plot(covariate_timeseries.numpy(), label="LR Conditioning", color='mediumblue', lw=0.8, ls=':')
     ax.plot(groundtruth_timeseries.numpy(), label="Ground Truth", color='k', lw=0.8)
     ax.legend(fontsize=8, frameon=False)
     ax.set_title(f"{var.upper()} Time Series at x = {x}, y = {y}", fontsize=12)
@@ -210,6 +220,16 @@ def plot_dailymax_timeseries(experiment, var, N, xy):
     realizations_timeseries = compute_daily_maximum(realizations_timeseries, axis=0)
     groundtruth_timeseries = experiment.data_scaled['groundtruth'][var][:, :, :, y, x].squeeze()
     groundtruth_timeseries = compute_daily_maximum(groundtruth_timeseries, axis=0)
+    sf = experiment.scale_factor
+    try:
+        covariate_timeseries = experiment.data_scaled['covariates'][var][:, :, :, y//sf, x//sf].squeeze()
+    except KeyError:
+        try:
+            covariate_timeseries = experiment.data_scaled['covariates'][var + '_c'][:, :, :, y//sf, x//sf].squeeze()
+        except KeyError:
+            covariate_timeseries = None
+    if covariate_timeseries is not None:
+        covariate_timeseries = compute_daily_maximum(covariate_timeseries, axis=0)
     N_days = realizations_timeseries.shape[0]
 
     # Plot each realization
@@ -218,6 +238,8 @@ def plot_dailymax_timeseries(experiment, var, N, xy):
         label = f"Realizations (N={N})" if i == 0 else None
         ax.plot(realizations_timeseries[:, i].numpy(), label=label, color='royalblue', lw=0.6, alpha=0.4)
     ax.plot(torch.mean(realizations_timeseries, dim=1).numpy(), label="Realizations Mean", color='red', lw=1.0, ls='--')
+    if covariate_timeseries is not None:
+        ax.plot(covariate_timeseries.numpy(), label="LR Conditioning", color='mediumblue', lw=0.8, ls=':')
     ax.plot(groundtruth_timeseries.numpy(), label="Ground Truth", color='k', lw=0.8)
     ax.legend(fontsize=8, frameon=False)
     ax.set_title(f"{var.upper()} Time Series at x = {x}, y = {y}", fontsize=12)
