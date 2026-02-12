@@ -102,7 +102,7 @@ def load_model():
     config = get_config()
     experiment_name = config['experiment_name']
     path_to_experiments = config['path_to_experiments']
-    path_to_model = os.path.join(path_to_experiments, experiment_name, f"generator_{experiment_name}.pt")
+    path_to_model = os.path.join(path_to_experiments, experiment_name, "generator.pt")
 
     # Load model
     model = torch.jit.load(path_to_model).cuda()
