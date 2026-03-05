@@ -269,11 +269,23 @@ def plot_rank_histogram(experiment, var, N, xy, daily_max=False):
     ranks = compute_ranks(realizations_timeseries, groundtruth_timeseries, time_dim=0)
 
     # plot
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(5,5), dpi=100)
-    ax.hist(ranks/max(ranks), bins=np.linspace(0,1,11), color='0.75', edgecolor='0.25', rwidth=.9, linewidth=0.6)
-    ax.set_xlabel("Normalized Rank", fontsize=8)
-    ax.set_title("Rank Histogram for x={}, y={}".format(x, y), fontsize=10)
-    # ax.set_yticks(np.arange(0,20,2))
+    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(12,4))
+    for a in ax:
+        a.spines["top"].set_visible(False)
+        a.spines["right"].set_visible(False)
+        a.grid(True, axis='y', linestyle='--', linewidth=0.5, zorder=0, color='0.75')
+
+    counts, bins, _ = ax[0].hist(ranks/max(ranks), bins=np.linspace(0,1,11), color='0.75', edgecolor='0.25', rwidth=.9, linewidth=0.6, density=True, zorder=10)
+    ax[0].axhline(1, color='r', linestyle='--', zorder=10)
+    ax[0].set_xlabel("Normalized Rank", fontsize=9)
+    ax[0].set_ylabel("Density", fontsize=9)
+
+    ax[1].plot(bins, np.append(0, np.cumsum(counts)*(bins[1:] - bins[:-1])), color='k', label="Empirical")
+    ax[1].set_xlabel("Normalized Rank", fontsize=9)
+    ax[1].plot([0,1], [0,1], color='r', linestyle='--', label="Ideal")
+    ax[1].set_ylabel("CDF", fontsize=9)
+    ax[1].legend(loc='lower right', facecolor=None, frameon=False, fontsize=10)
+
     if daily_max:
         _save_figure(fig, f"{var}_dailymax_rank_histogram_x{x}y{y}", experiment)
     else:
