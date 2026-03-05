@@ -270,7 +270,7 @@ def plot_rank_histogram(experiment, var, N, xy, daily_max=False):
 
     # plot
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(5,5), dpi=100)
-    ax.hist(ranks/max(ranks), bins=np.linspace(0,1,21), color='navy', alpha=.5, rwidth=.9)
+    ax.hist(ranks/max(ranks), bins=np.linspace(0,1,11), color='0.75', edgecolor='0.25', rwidth=.9, linewidth=0.6)
     ax.set_xlabel("Normalized Rank", fontsize=8)
     ax.set_title("Rank Histogram for x={}, y={}".format(x, y), fontsize=10)
     # ax.set_yticks(np.arange(0,20,2))
