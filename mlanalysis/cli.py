@@ -26,7 +26,6 @@ def main():
             plot_realizations_spectra,
             plot_timeseries,
             plot_dailymax_timeseries,
-            plot_rank_histogram,
             plot_pixelwise_statistics,
             plot_pixelwise_statistics_histogram,
             plot_time_avg_spectrum,
@@ -62,8 +61,6 @@ def main():
 
                 plot_timeseries(experiment, var=var, N=N, xy=loc)
                 plot_dailymax_timeseries(experiment, var=var, N=N, xy=loc)
-                plot_rank_histogram(experiment, var=var, N=N, xy=loc, daily_max=False)
-                plot_rank_histogram(experiment, var=var, N=N, xy=loc, daily_max=True)
 
     finally:
 

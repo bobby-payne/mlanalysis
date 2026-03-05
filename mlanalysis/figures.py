@@ -186,29 +186,65 @@ def plot_timeseries(experiment, var, N, xy):
         except KeyError:
             covariate_timeseries = None
 
-    # Plot each realization
-    fig, ax = plt.subplots(figsize=(10, 4))
+    # ranks for rank histogram
+    ranks = compute_ranks(realizations_timeseries, groundtruth_timeseries, time_dim=0)
+
+    # Plot time series and rank histogram
+    fig = plt.figure(figsize=(12, 8))
+    gs = fig.add_gridspec(nrows=2, ncols=2, height_ratios=[.9, .9], hspace=0.25, wspace=0.15)
+
+    ax_top = fig.add_subplot(gs[0, :])   # long plot on top
+    ax_bl = fig.add_subplot(gs[1, 0])    # bottom-left
+    ax_br = fig.add_subplot(gs[1, 1])    # bottom-right
+
+    # --- top plot: time series ---
     for i in range(N):
         label = f"Realizations (N={N})" if i == 0 else None
-        ax.plot(realizations_timeseries[:, i].numpy(), label=label, color='royalblue', lw=0.6, alpha=0.4)
-    ax.plot(torch.mean(realizations_timeseries, dim=1).numpy(), label="Realizations Mean", color='red', lw=1.0, ls='--')
+        ax_top.plot(realizations_timeseries[:, i].numpy(), color="royalblue", lw=0.6, alpha=0.25, label=label)
+    ax_top.plot(torch.mean(realizations_timeseries, dim=1).numpy(), color="navy", lw=1.0, ls="--", label="Realizations Mean")
+    ax_top.plot(groundtruth_timeseries.numpy(), color="k", lw=0.9, label="Ground Truth")
     if covariate_timeseries is not None:
-        ax.plot(covariate_timeseries.numpy(), label="LR Conditioning", color='mediumblue', lw=0.8, ls=':')
-    ax.plot(groundtruth_timeseries.numpy(), label="Ground Truth", color='k', lw=0.8)
-    ax.legend(fontsize=8, frameon=False)
-    ax.set_title(f"{var.upper()} Time Series at x = {x}, y = {y}", fontsize=12)
-    ax.set_ylabel(f"{var.upper()}", fontsize=10)
-    ax.grid(alpha=.3, which='major', ls='-')
-    ax.set_xlim(0, len(experiment.timestamps)-1)
+        ax_top.plot(covariate_timeseries.numpy(), color="k", lw=0.8, ls=":", label="LR Conditioning")
+    ax_top.set_ylabel(var.upper())
     xtick_idxs = [0, len(experiment.timestamps)//2, len(experiment.timestamps)-1]
-    ax.set_xticks(xtick_idxs)
-    ax.set_xticklabels([experiment.timestamps[i] for i in xtick_idxs])
-    plt.tight_layout()
+    ax_top.set_xlim(0, len(experiment.timestamps)-1)
+    ax_top.set_xticks(xtick_idxs)
+    ax_top.set_xticklabels([experiment.timestamps[i] for i in xtick_idxs])
+    ax_top.legend(frameon=False, fontsize=8, ncols=2)
+
+    # --- bottom-left: normalized rank histogram ---
+    norm_ranks = (ranks / ranks.max()).numpy()
+    counts, bins, _ = ax_bl.hist(
+        norm_ranks, bins=np.linspace(0, 1, 11), density=True,
+        color="0.75", edgecolor="0.25", rwidth=0.9, linewidth=0.6, zorder=10
+    )
+    ax_bl.axhline(1, color="r", linestyle="--", zorder=11)
+    ax_bl.set_xlabel("Normalized Rank")
+    ax_bl.set_ylabel("Density")
+
+    # --- bottom-right: rank CDF ---
+    ax_br.plot(bins, np.append(0, np.cumsum(counts) * (bins[1:] - bins[:-1])), color="k", label="Empirical")
+    ax_br.plot([0, 1], [0, 1], color="r", linestyle="--", label="Ideal")
+    ax_br.set_xlabel("Normalized Rank")
+    ax_br.set_ylabel("CDF")
+    # ax_br.legend(loc="lower right", frameon=False, fontsize=8)
+
+    for a in (ax_top, ax_bl, ax_br):
+        a.spines["top"].set_visible(False)
+        a.spines["right"].set_visible(False)
+        a.grid(True, linestyle="--", linewidth=0.5, alpha=0.4)
+
+    dtxt = 0.1
+    ax_top.text(-dtxt/2, 1.05, "(a)", ha='left', va='center', fontsize=15, transform=ax_top.transAxes, fontweight='bold')
+    ax_bl.text(-dtxt, 1.05, "(b)", ha='left', va='center', fontsize=15, transform=ax_bl.transAxes, fontweight='bold')
+    ax_br.text(-dtxt, 1.05, "(c)", ha='left', va='center', fontsize=15, transform=ax_br.transAxes, fontweight='bold')
+
     _save_figure(fig, f"{var}_timeseries_x{x}y{y}", experiment)
 
 
 def plot_dailymax_timeseries(experiment, var, N, xy):
 
+    # generate dailymax timeseries
     if not experiment.timestamps[0][-2:] == '00':
         raise ValueError("First time index does not correspond to hour 00. Time series of daily maxima cannot be computed.")
     x, y = (xy[0], xy[1])  # the grid point to extract time series from
@@ -232,64 +268,60 @@ def plot_dailymax_timeseries(experiment, var, N, xy):
         covariate_timeseries = compute_daily_maximum(covariate_timeseries, axis=0)
     N_days = realizations_timeseries.shape[0]
 
-    # Plot each realization
-    fig, ax = plt.subplots(figsize=(10, 4))
-    for i in range(N):
-        label = f"Realizations (N={N})" if i == 0 else None
-        ax.plot(realizations_timeseries[:, i].numpy(), label=label, color='royalblue', lw=0.6, alpha=0.4)
-    ax.plot(torch.mean(realizations_timeseries, dim=1).numpy(), label="Realizations Mean", color='red', lw=1.0, ls='--')
-    if covariate_timeseries is not None:
-        ax.plot(covariate_timeseries.numpy(), label="LR Conditioning", color='mediumblue', lw=0.8, ls=':')
-    ax.plot(groundtruth_timeseries.numpy(), label="Ground Truth", color='k', lw=0.8)
-    ax.legend(fontsize=8, frameon=False)
-    ax.set_title(f"{var.upper()} Time Series at x = {x}, y = {y}", fontsize=12)
-    ax.set_ylabel(f"{var.upper()}", fontsize=10)
-    ax.grid(alpha=.3, which='major', ls='-')
-    ax.set_xlim(0, N_days-1)
-    xtick_idxs = [0, N_days//2, N_days-1]
-    print(xtick_idxs)
-    ax.set_xticks(xtick_idxs)
-    ax.set_xticklabels([experiment.timestamps[i*24][:10] for i in xtick_idxs])
-    plt.tight_layout()
-    _save_figure(fig, f"{var}_timeseries_dailymax_x{x}y{y}", experiment)
-
-
-def plot_rank_histogram(experiment, var, N, xy, daily_max=False):
-
-    x, y = (xy[0], xy[1])  # the grid point to extract time series from
-    realizations_timeseries = experiment.generate_realization_timeseries(
-        N_realizations=N,
-        unscale=True,
-        round_negatives=False
-    )[:, :, y, x]
-    groundtruth_timeseries = experiment.data_scaled['groundtruth'][var][:, :, :, y, x].squeeze()
-    if daily_max:
-        realizations_timeseries = compute_daily_maximum(realizations_timeseries, axis=0)
-        groundtruth_timeseries = compute_daily_maximum(groundtruth_timeseries, axis=0)
+    # ranks for rank histogram of daily maxima
     ranks = compute_ranks(realizations_timeseries, groundtruth_timeseries, time_dim=0)
 
-    # plot
-    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(12,4))
-    for a in ax:
+    # Plot time series and rank histogram
+    fig = plt.figure(figsize=(12, 8))
+    gs = fig.add_gridspec(nrows=2, ncols=2, height_ratios=[.9, .9], hspace=0.25, wspace=0.15)
+
+    ax_top = fig.add_subplot(gs[0, :])   # long plot on top
+    ax_bl = fig.add_subplot(gs[1, 0])    # bottom-left
+    ax_br = fig.add_subplot(gs[1, 1])    # bottom-right
+
+    # --- top plot: time series ---
+    for i in range(N):
+        label = f"Realizations (N={N})" if i == 0 else None
+        ax_top.plot(realizations_timeseries[:, i].numpy(), color="royalblue", lw=0.6, alpha=0.25, label=label)
+    ax_top.plot(torch.mean(realizations_timeseries, dim=1).numpy(), color="navy", lw=1.0, ls="--", label="Realizations Mean")
+    ax_top.plot(groundtruth_timeseries.numpy(), color="k", lw=0.9, label="Ground Truth")
+    if covariate_timeseries is not None:
+        ax_top.plot(covariate_timeseries.numpy(), color="k", lw=0.8, ls=":", label="LR Conditioning")
+    ax_top.set_ylabel(var.upper())
+    ax_top.set_xlim(0, N_days - 1)
+    xtick_idxs = [0, N_days//2, N_days-1]
+    ax_top.set_xticks(xtick_idxs)
+    ax_top.set_xticklabels([experiment.timestamps[i * 24][:10] for i in xtick_idxs])
+    ax_top.legend(frameon=False, fontsize=8, ncols=2)
+
+    # --- bottom-left: normalized rank histogram ---
+    norm_ranks = (ranks / ranks.max()).numpy()
+    counts, bins, _ = ax_bl.hist(
+        norm_ranks, bins=np.linspace(0, 1, 11), density=True,
+        color="0.75", edgecolor="0.25", rwidth=0.9, linewidth=0.6, zorder=10
+    )
+    ax_bl.axhline(1, color="r", linestyle="--", zorder=11)
+    ax_bl.set_xlabel("Normalized Rank")
+    ax_bl.set_ylabel("Density")
+
+    # --- bottom-right: rank CDF ---
+    ax_br.plot(bins, np.append(0, np.cumsum(counts) * (bins[1:] - bins[:-1])), color="k", label="Empirical")
+    ax_br.plot([0, 1], [0, 1], color="r", linestyle="--", label="Ideal")
+    ax_br.set_xlabel("Normalized Rank")
+    ax_br.set_ylabel("CDF")
+    # ax_br.legend(loc="lower right", frameon=False, fontsize=8)
+
+    for a in (ax_top, ax_bl, ax_br):
         a.spines["top"].set_visible(False)
         a.spines["right"].set_visible(False)
-        a.grid(True, axis='y', linestyle='--', linewidth=0.5, zorder=0, color='0.75')
+        a.grid(True, linestyle="--", linewidth=0.5, alpha=0.4)
 
-    counts, bins, _ = ax[0].hist(ranks/max(ranks), bins=np.linspace(0,1,11), color='0.75', edgecolor='0.25', rwidth=.9, linewidth=0.6, density=True, zorder=10)
-    ax[0].axhline(1, color='r', linestyle='--', zorder=10)
-    ax[0].set_xlabel("Normalized Rank", fontsize=9)
-    ax[0].set_ylabel("Density", fontsize=9)
+    dtxt = 0.1
+    ax_top.text(-dtxt/2, 1.05, "(a)", ha='left', va='center', fontsize=15, transform=ax_top.transAxes, fontweight='bold')
+    ax_bl.text(-dtxt, 1.05, "(b)", ha='left', va='center', fontsize=15, transform=ax_bl.transAxes, fontweight='bold')
+    ax_br.text(-dtxt, 1.05, "(c)", ha='left', va='center', fontsize=15, transform=ax_br.transAxes, fontweight='bold')
 
-    ax[1].plot(bins, np.append(0, np.cumsum(counts)*(bins[1:] - bins[:-1])), color='k', label="Empirical")
-    ax[1].set_xlabel("Normalized Rank", fontsize=9)
-    ax[1].plot([0,1], [0,1], color='r', linestyle='--', label="Ideal")
-    ax[1].set_ylabel("CDF", fontsize=9)
-    ax[1].legend(loc='lower right', facecolor=None, frameon=False, fontsize=10)
-
-    if daily_max:
-        _save_figure(fig, f"{var}_dailymax_rank_histogram_x{x}y{y}", experiment)
-    else:
-        _save_figure(fig, f"{var}_rank_histogram_x{x}y{y}", experiment)
+    _save_figure(fig, f"{var}_dailymax_timeseries_x{x}y{y}", experiment)
 
 
 def plot_pixelwise_statistics(experiment, var, N, daily_max=False):
