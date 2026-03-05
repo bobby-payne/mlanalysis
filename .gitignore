@@ -2,3 +2,4 @@ mlanalysis/__pycache__/
 __pycache__/
 *.pyc
 hup*.out
+mlanalysis/output/
