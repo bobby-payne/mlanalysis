@@ -3,4 +3,4 @@ __pycache__/
 *.pyc
 hup*.out
 mlanalysis/output/
-mlanalysis/mlanalysis/testing.ipynb
+mlanalysis/testing.ipynb
