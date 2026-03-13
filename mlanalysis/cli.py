@@ -27,7 +27,6 @@ def main():
             plot_timeseries,
             plot_dailymax_timeseries,
             plot_pixelwise_statistics,
-            plot_pixelwise_statistics_histogram,
             plot_time_avg_spectrum,
             plot_spectrogram,
         )
@@ -50,8 +49,6 @@ def main():
             plot_realizations_spectra(experiment, var=var, N=N, time_idx=-1)
             plot_pixelwise_statistics(experiment, var=var, N=N, daily_max=False)
             plot_pixelwise_statistics(experiment, var=var, N=N, daily_max=True)
-            plot_pixelwise_statistics_histogram(experiment, var=var, N=N, daily_max=False)
-            plot_pixelwise_statistics_histogram(experiment, var=var, N=N, daily_max=True)
             plot_time_avg_spectrum(experiment, var=var, N=N, daily_max=False)
             plot_time_avg_spectrum(experiment, var=var, N=N, daily_max=True)
             plot_spectrogram(experiment, var=var, N=N, daily_max=False)

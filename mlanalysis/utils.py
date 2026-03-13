@@ -45,20 +45,20 @@ def compute_statistics(data, prestacked=True, axis=0):
     """
     Compute statistics for a data tensor over the given axis.
     Returns the stats as a tuple in the order:
-    (mean, standard deviation, median, 1st perc., 95th perc., 99th perc.)
+    (mean, median, std, interquartile range, 95th perc., 99th perc.)
     """
 
     if not prestacked:
         data = np.stack(data, axis=axis)
 
     data_mean = np.nanmean(data, axis=axis)
-    data_std = np.nanstd(data, axis=axis)
     data_median = np.nanmedian(data, axis=axis)
-    data_5p = np.nanpercentile(data, q=5, axis=axis)
+    data_std = np.nanstd(data, axis=axis)
+    data_iqr = np.nanpercentile(data, q=75, axis=axis) - np.nanpercentile(data, q=25, axis=axis)
     data_95p = np.nanpercentile(data, q=95, axis=axis)
     data_99p = np.nanpercentile(data, q=99, axis=axis)
 
-    return (data_mean, data_std, data_median, data_5p, data_95p, data_99p)
+    return (data_mean, data_median, data_std, data_iqr, data_95p, data_99p)
 
 @lru_cache(maxsize=None)
 def compute_daily_maximum(tensor, axis=0):

@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
+from matplotlib.gridspec import GridSpec
 
 from .utils import compute_daily_maximum, compute_statistics, compute_ranks
 from .spectral import get_rapsd, compute_realizations_spectra
@@ -326,6 +327,10 @@ def plot_dailymax_timeseries(experiment, var, N, xy):
 
 def plot_pixelwise_statistics(experiment, var, N, daily_max=False):
 
+    # ------------------
+    # Data preparation and statistics computation
+    # ------------------
+
     realizations_timeseries = experiment.generate_realization_timeseries(
         N_realizations=N,
         unscale=True,
@@ -338,32 +343,62 @@ def plot_pixelwise_statistics(experiment, var, N, daily_max=False):
 
     # Compute statistics
     (mean_field_sr,
-     std_field_sr,
-     median_field_sr,
-     _,
-     p95_field_sr,
-     p99_field_sr) = compute_statistics(realizations_timeseries, prestacked=True, axis=0)
+        median_field_sr,
+        std_field_sr,
+        iqr_field_sr,
+        p95_field_sr,
+        p99_field_sr) = compute_statistics(realizations_timeseries, prestacked=True, axis=0)
 
     (mean_field_gt,
-     std_field_gt,
-     median_field_gt,
-     _,
-     p95_field_gt,
-     p99_field_gt) = compute_statistics(groundtruth_timeseries, prestacked=True, axis=0)
+        median_field_gt,
+        std_field_gt,
+        iqr_field_gt,
+        p95_field_gt,
+        p99_field_gt) = compute_statistics(groundtruth_timeseries, prestacked=True, axis=0)
 
     # Average over realizations and plot statistics
     stats = {
         'Mean': (mean_field_sr, mean_field_gt),
-        'Standard Deviation': (std_field_sr, std_field_gt),
         'Median': (median_field_sr, median_field_gt),
+        'Standard Deviation': (std_field_sr, std_field_gt),
+        'Interquartile Range': (iqr_field_sr, iqr_field_gt),
         '95 Percentile': (p95_field_sr, p95_field_gt),
         '99 Percentile': (p99_field_sr, p99_field_gt)
     }
     stats = {statname: (np.nanmean(fields[0], axis=0), fields[1]) for statname, fields in stats.items()}
 
+    # ===============================
+    # Figure layout
+    # ===============================
+
+    n_stats = len(stats)
+
+    fig = plt.figure(figsize=(10, n_stats * 3 + 1))
+
+    # Outer grid: n_stats rows, 2 columns (maps | histogram)
+    gs = GridSpec(
+        n_stats,
+        2,
+        figure=fig,
+        width_ratios=[3, 1],   # maps take 3x the width of histogram
+        hspace=0.4,
+        wspace=0.15,
+    )
+
+    # ===============================
+    # Spatial statistics panels
+    # ===============================
+
     cmap = 'viridis'
-    ts = 5
-    for stat_name, stat_fields in stats.items():
+    ts = 8
+    letters = ['(a)', '(b)', '(c)', '(d)', '(e)', '(f)']
+
+    ax_hist_list = []
+
+    for idx, (stat_name, stat_fields) in enumerate(stats.items()):
+
+        # ---- Maps (left cell) ----
+        ax_maps = fig.add_subplot(gs[idx, 0])
 
         vmin = min(np.nanmin(stat_fields[0]), np.nanmin(stat_fields[1])).item()
         vmax = max(np.nanmax(stat_fields[0]), np.nanmax(stat_fields[1])).item()
@@ -375,111 +410,109 @@ def plot_pixelwise_statistics(experiment, var, N, daily_max=False):
         elif np.abs(dvmin) > np.abs(dvmax):
             dvmax = -dvmin
 
-        fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(6, 2.5))
-        for axis in ax:
+        # Inner grid: 1 row, 3 maps
+        gs_inner = ax_maps.get_subplotspec().subgridspec(1, 3,)
+        ax_maps.remove()
+
+        ax_left  = fig.add_subplot(gs_inner[0])
+        ax_mid   = fig.add_subplot(gs_inner[1])
+        ax_right = fig.add_subplot(gs_inner[2])
+
+        for axis in [ax_left, ax_mid, ax_right]:
             axis.axis('off')
 
-        if daily_max:
-            fig.suptitle(f"{stat_name.title()} Daily Maximum {var.upper()}", fontsize=ts*1.2, y=0.95)
-        else:
-            fig.suptitle(f"{stat_name.title()} {var.upper()}", fontsize=ts*1.2, y=0.95)
-        ax[0].set_title(f"Downscaled", size=ts)
-        ax[0].imshow(stat_fields[0], cmap=cmap, vmin=vmin, vmax=vmax, origin='lower')
+        ax_left.set_title("Downscaled", fontsize=ts)
+        ax_left.imshow(stat_fields[0], cmap=cmap, vmin=vmin, vmax=vmax, origin='lower')
 
-        ax[1].set_title(f"Ground Truth", size=ts)
-        plot1 = ax[1].imshow(stat_fields[1], cmap=cmap, vmin=vmin, vmax=vmax, origin='lower')
+        ax_mid.set_title("Ground Truth", fontsize=ts)
+        plot1 = ax_mid.imshow(stat_fields[1], cmap=cmap, vmin=vmin, vmax=vmax, origin='lower')
 
-        ax[2].set_title(f"Downscaled - Ground Truth",size=ts)
-        plot2 = ax[2].imshow(stat_fields[0] - stat_fields[1], cmap='RdBu_r', vmin=dvmin, vmax=dvmax, origin='lower')
+        ax_right.set_title("Downscaled - Ground Truth", fontsize=ts)
+        plot2 = ax_right.imshow(stat_fields[0] - stat_fields[1],
+                                cmap='RdBu_r', vmin=dvmin, vmax=dvmax,
+                                origin='lower')
 
-        # Add colorbar (using the last plotted image for the colorbar)
-        colorbar = fig.colorbar(plot1, ax=ax[:2], orientation='horizontal', pad=0.05, aspect=80)
+        # Row title + letter label
+        x0 = ax_left.get_position().x0
+        x1 = ax_right.get_position().x1
+        y1 = max(ax_left.get_position().y1,
+                 ax_mid.get_position().y1,
+                 ax_right.get_position().y1)
+
+        display_name = stat_name
+        if stat_name.endswith("Percentile"):
+            display_name = stat_name.replace(" ", "th ")
+
+        dy = 0.016
+        fig.text((x0 + x1) / 2, y1 + dy,
+                 display_name,
+                 ha='center', va='bottom',
+                 fontsize=ts + 2, fontweight='bold')
+
+        fig.text(x0, y1 + dy,
+                 letters[idx],
+                 ha='center', va='bottom',
+                 fontsize=ts + 2, fontweight='bold')
+
+        # Colorbars
+        colorbar = fig.colorbar(plot1,
+                                ax=[ax_left, ax_mid],
+                                orientation='horizontal',
+                                pad=0.05, fraction=0.0512, aspect=40)
         colorbar.outline.set_visible(False)
-        colorbar.ax.tick_params(labelsize=ts, width=.25)
-        colorbar.ax.set_title(None)
+        colorbar.ax.tick_params(labelsize=ts, width=0.25)
+        colorbar.set_label(var.upper(), fontsize=ts)
 
-        colorbar_dif = fig.colorbar(plot2, ax=ax[2], orientation='horizontal', pad=0.05, aspect=25)
+        colorbar_dif = fig.colorbar(plot2,
+                                    ax=ax_right,
+                                    orientation='horizontal',
+                                    pad=0.05, fraction=0.045, aspect=20)
         colorbar_dif.outline.set_visible(False)
-        colorbar_dif.ax.tick_params(labelsize=ts, width=.25) 
-        colorbar_dif.ax.set_title(None)
+        colorbar_dif.ax.tick_params(labelsize=ts, width=0.25)
+        colorbar_dif.set_label("$\Delta$" + var.upper(), fontsize=ts)
 
-        if daily_max:
-            _save_figure(fig, f"{var}_dailymax_pixelwise_{stat_name.lower().replace(' ', '_')}", experiment)
-        else:
-            _save_figure(fig, f"{var}_pixelwise_{stat_name.lower().replace(' ', '_')}", experiment)
+        # ---- Histogram (right cell) ----
+        ax_h = fig.add_subplot(gs[idx, 1])
+        ax_hist_list.append((ax_h, stat_name))
 
+    # ===============================
+    # Histogram panels
+    # ===============================
 
-def plot_pixelwise_statistics_histogram(experiment, var, N, daily_max=False):
-
-    realizations_timeseries = experiment.generate_realization_timeseries(
-        N_realizations=N,
-        unscale=True,
-        round_negatives=True,
-    )
-    groundtruth_timeseries = experiment.data_scaled['groundtruth'][var].squeeze()
-    if daily_max:
-        realizations_timeseries = compute_daily_maximum(realizations_timeseries, axis=0)
-        groundtruth_timeseries = compute_daily_maximum(groundtruth_timeseries, axis=0)
-
-    # Compute statistics
-    (mean_field_sr,
-     std_field_sr,
-     median_field_sr,
-     p5_field_sr,
-     p95_field_sr,
-     p99_field_sr) = compute_statistics(realizations_timeseries, prestacked=True, axis=0)
-
-    (mean_field_gt,
-     std_field_gt,
-     median_field_gt,
-     p5_field_gt,
-     p95_field_gt,
-     p99_field_gt) = compute_statistics(groundtruth_timeseries, prestacked=True, axis=0)
-
-    stats = {
-        'Mean': (mean_field_sr, mean_field_gt),
-        'Standard Deviation': (std_field_sr, std_field_gt),
-        'Median': (median_field_sr, median_field_gt),
-        '5 Percentile': (p5_field_sr, p5_field_gt),
-        '95 Percentile': (p95_field_sr, p95_field_gt),
-        '99 Percentile': (p99_field_sr, p99_field_gt)
-    }
-    stats = {statname: (np.nanmean(fields[0], axis=0), fields[1]) for statname, fields in stats.items()}
-
-    # Plot statistics
-    fig, ax = plt.subplots(nrows=2, ncols=3, figsize=(8, 4), dpi=200)
-    ts = 5
     nbins = 200
 
-    for i, axis in enumerate(ax.flat):
+    for i, (axis, statname) in enumerate(ax_hist_list):
 
-        statname = list(stats.keys())[i]
         min_val = np.nanmin([stats[statname][0].min(), stats[statname][1].min()])
         max_val = np.nanmax([stats[statname][0].max(), stats[statname][1].max()])
         bins = np.linspace(min_val, max_val, nbins)
-        axis.hist(stats[statname][1].flatten(), bins=bins, alpha=0.5, label='HR Truth (WRF)', density=0)
-        axis.hist(stats[statname][0].flatten(), bins=bins, alpha=0.5, label='HR Downscaled', color='orange', density=0)
-        axis.set_title(statname, size=ts)
 
-    subtitle = f"Daily Maximum {var.upper()}" if daily_max else var.upper()
-    fig.suptitle(f"Spatial Distributions of Pixelwise Summary Statistics\n({subtitle})", fontsize=8, fontweight='bold', y=0.98)
+        axis.hist(stats[statname][1].flatten(),
+                bins=bins, alpha=0.52, label='Ground Truth', density=0)
 
-    for i, axes in enumerate(ax.flat):
-        if i == 0:
-            axes.legend(fontsize=5, frameon=False, loc='upper right')
-        else:
-            axes.legend(fontsize=5, frameon=False)
-        axes.tick_params(axis='both', which='major', labelsize=3.5)
-        axes.title.set_fontweight('bold')
-        if not i == 0:
-            axes.set_xlabel(var.upper(), size=.7*ts)
+        axis.hist(stats[statname][0].flatten(),
+                bins=bins, alpha=0.52, label='Downscaled',
+                color='orange', density=0)
 
-    plt.subplots_adjust(hspace=0.34, wspace=0.14)
+        legend_kwargs = dict(fontsize=8, frameon=False,
+                            loc='upper right' if i == 0 else 'best')
+        axis.legend(**legend_kwargs)
 
+        axis.tick_params(axis='both', which='major', labelsize=7)
+        axis.set_xlabel(var.upper(), size=8)
+        axis.spines["top"].set_visible(False)
+        axis.spines["right"].set_visible(False)
+        axis.margins(y=0.05)
+        pos = axis.get_position()
+        axis.set_position([pos.x0, pos.y0 + 0.003, pos.width * 1.6, pos.height * .95])
+
+    # =======================================
+    # Save figure
+    # =======================================
     if daily_max:
-        _save_figure(fig, f"{var}_dailymax_pixelwise_histogram", experiment)
+        _save_figure(fig, f"{var}_dailymax_pixelwise_stats", experiment)
     else:
-        _save_figure(fig, f"{var}_pixelwise_histogram", experiment)
+        _save_figure(fig, f"{var}_pixelwise_stats", experiment)
 
 
 def plot_time_avg_spectrum(experiment, var, N, daily_max=False):
