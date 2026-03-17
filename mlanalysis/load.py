@@ -8,6 +8,28 @@ from .config import get_config
 from .utils import transpose_nested_dict
 
 
+def get_data_years():
+
+    # Read from config
+    config = get_config()
+    path_to_zarr = config['path_to_zarr']
+    split = config['split']
+
+    # Get PATHS to data (not the actual data yet)
+    covariate_paths = sorted(glob(os.path.join(path_to_zarr, f"{split}/*/lr/*.pt")))
+
+    # Create a list of datetimes
+    file_years = []
+    for file in covariate_paths:
+        filename = os.path.basename(file)
+        year_str = filename[-16:-12]
+        file_years.append(int(year_str))
+
+    years = sorted(list(set(file_years)))
+
+    return years
+
+
 def load_data ():
 
     # Read from config
