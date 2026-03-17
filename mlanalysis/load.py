@@ -30,7 +30,7 @@ def get_data_years():
     return years
 
 
-def load_data ():
+def load_data (year=None):
 
     # Read from config
     config = get_config()
@@ -48,10 +48,11 @@ def load_data ():
     path_topography_lr = os.path.join(path_to_zarr, f"invariant/topography/lr_invariant/topography.pt")
     path_topography_hr = os.path.join(path_to_zarr, f"invariant/topography/hr_invariant/topography.pt")
 
+    year = "" if year is None else year  # if year is None, load all years; otherwise, load the specified year
     for name in covariate_names:
-        covariate_paths[name] = sorted(glob(os.path.join(path_to_zarr, f"{split}/{name}/lr/*.pt")))[i0:i1]
+        covariate_paths[name] = sorted(glob(os.path.join(path_to_zarr, f"{split}/{name}/lr/{name}_{year}*.pt")))[i0:i1]
     for name in predictand_names:
-        groundtruth_paths[name] = sorted(glob(os.path.join(path_to_zarr, f"{split}/{name}/hr/*.pt")))[i0:i1]
+        groundtruth_paths[name] = sorted(glob(os.path.join(path_to_zarr, f"{split}/{name}/hr/{name}_{year}*.pt")))[i0:i1]
 
     # Load data from paths
     covariate_data, groundtruth_data = {}, {}
