@@ -34,30 +34,33 @@ def main():
         # Set random seed for reproducibility
         set_seed(get_config()['seed'])
 
-        # Plot the training and validation metrics
-        experiment = Experiment()
-        experiment.summary()
+        # Loop over years (if multiple) and generate plots for each year
+        for year in get_config()['years']:
 
-        # Generate plots
-        print("Generating plots...")
-        N = experiment.n_realizations
-        plot_metrics(experiment)
+            # Plot the training and validation metrics
+            experiment = Experiment(year=year)
+            experiment.summary()
 
-        for var in experiment.predictand_names:
+            # Generate plots
+            print("Generating plots...")
+            N = experiment.n_realizations
+            plot_metrics(experiment)
 
-            plot_realizations(experiment, var=var, N=4, time_idx=-1)
-            plot_realizations_spectra(experiment, var=var, N=N, time_idx=-1)
-            plot_pixelwise_statistics(experiment, var=var, N=N, daily_max=False)
-            plot_pixelwise_statistics(experiment, var=var, N=N, daily_max=True)
-            plot_time_avg_spectrum(experiment, var=var, N=N, daily_max=False)
-            plot_time_avg_spectrum(experiment, var=var, N=N, daily_max=True)
-            plot_spectrogram(experiment, var=var, N=N, daily_max=False)
-            plot_spectrogram(experiment, var=var, N=N, daily_max=True)
+            for var in experiment.predictand_names:
 
-            for loc in experiment.loc_idxs:  # Location-specific plots
+                plot_realizations(experiment, var=var, N=4, time_idx=-1)
+                plot_realizations_spectra(experiment, var=var, N=N, time_idx=-1)
+                plot_pixelwise_statistics(experiment, var=var, N=N, daily_max=False)
+                plot_pixelwise_statistics(experiment, var=var, N=N, daily_max=True)
+                plot_time_avg_spectrum(experiment, var=var, N=N, daily_max=False)
+                plot_time_avg_spectrum(experiment, var=var, N=N, daily_max=True)
+                plot_spectrogram(experiment, var=var, N=N, daily_max=False)
+                plot_spectrogram(experiment, var=var, N=N, daily_max=True)
 
-                plot_timeseries(experiment, var=var, N=N, xy=loc)
-                plot_dailymax_timeseries(experiment, var=var, N=N, xy=loc)
+                for loc in experiment.loc_idxs:  # Location-specific plots
+
+                    plot_timeseries(experiment, var=var, N=N, xy=loc)
+                    plot_dailymax_timeseries(experiment, var=var, N=N, xy=loc)
 
     finally:
 

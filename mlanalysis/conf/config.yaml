@@ -1,14 +1,18 @@
 
-experiment_name: "FWI-2025-Nov07-bui-idealized"
+experiment_name: "FWI-2026-Mar16-nonideal"
 path_to_experiments: "/home/rpayne/data-rpayne/trained-models/sf8/"
 path_to_zarr: "/home/rpayne/data-rpayne/proc/WRF-USASK/cint/" # path in which the .zarr files are stored
-path_to_output: "/sapho/rpayne/mlanalysis/output/" # path in which to store output figures
+path_to_output: "/users/rpayne/mlanalysis/output/" # path in which to store output figures
 output_fig_format: "png"
 output_fig_dpi: 150
 split: "test" # options: "train", "validation", "test"
-seed: 242
+seed: null
 n_realizations: 50
 which_gpu: 0
+years:
+  - 2006
+  - 2009
+  - 2013
 subset_idxs:
   - 2880
   - 5856
@@ -21,6 +25,6 @@ covariate_names:
   - "psfc"
   - "q2"
   - "pr"
-  - "bui"
+  - "fwi"
 predictand_names:
-  - "bui"
+  - "fwi"
