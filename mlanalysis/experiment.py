@@ -17,7 +17,8 @@ class Experiment:
             setattr(self, key, value)
 
         # Data and their bounds become attributes of the Experiment instance
-        data = load_data(year)
+        self.year = year
+        data = load_data(self.year)
         data_min_max = load_min_max()
         self.data = {
             'covariates': data[0],

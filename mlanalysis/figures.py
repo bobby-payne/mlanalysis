@@ -13,11 +13,13 @@ def _save_figure(fig, filename, experiment):
 
     path_to_output = experiment.path_to_output
     experiment_name = experiment.experiment_name
+    year = experiment.year
     format = experiment.output_fig_format
     dpi = experiment.output_fig_dpi
     path_to_output_full = os.path.join(
         path_to_output,
         experiment_name,
+        str(year),
         f"{filename}.{format}"
     )
     os.makedirs(os.path.dirname(path_to_output_full), exist_ok=True)
