@@ -9,7 +9,7 @@ from .utils import invert_feature_scaling
 
 class Experiment:
 
-    def __init__(self):
+    def __init__(self, year=None):
 
         # Each config parameter becomes an attribute of the Experiment instance
         self.config = get_config()
@@ -17,7 +17,7 @@ class Experiment:
             setattr(self, key, value)
 
         # Data and their bounds become attributes of the Experiment instance
-        data = load_data()
+        data = load_data(year)
         data_min_max = load_min_max()
         self.data = {
             'covariates': data[0],
