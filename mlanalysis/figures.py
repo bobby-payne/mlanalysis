@@ -9,19 +9,26 @@ from .utils import compute_daily_maximum, compute_statistics, compute_ranks
 from .spectral import get_rapsd, compute_realizations_spectra
 
 
-def _save_figure(fig, filename, experiment):
+def _save_figure(fig, filename, experiment, save_to_experiment_root=False):
 
     path_to_output = experiment.path_to_output
     experiment_name = experiment.experiment_name
     year = experiment.year
     format = experiment.output_fig_format
     dpi = experiment.output_fig_dpi
-    path_to_output_full = os.path.join(
-        path_to_output,
-        experiment_name,
-        str(year),
-        f"{filename}.{format}"
-    )
+    if save_to_experiment_root:
+        path_to_output_full = os.path.join(
+            path_to_output,
+            experiment_name,
+            f"{filename}.{format}"
+        )
+    else:
+        path_to_output_full = os.path.join(
+            path_to_output,
+            experiment_name,
+            str(year),
+            f"{filename}.{format}"
+        )
     os.makedirs(os.path.dirname(path_to_output_full), exist_ok=True)
 
     fig.savefig(
@@ -49,7 +56,7 @@ def plot_metrics(experiment):
             plt.ylim(top=0.11)
         plt.legend()
         plt.grid(color='gray', ls='--', lw=.5, alpha=.15, which='both')
-        _save_figure(plt.gcf(), f"training_{m}", experiment)
+        _save_figure(plt.gcf(), f"training_{m}", experiment, save_to_experiment_root=True)
 
     plt.close('all')
 
