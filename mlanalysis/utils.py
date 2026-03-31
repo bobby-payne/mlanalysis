@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import operator
 from functools import lru_cache
 
 
@@ -29,6 +30,22 @@ def transpose_nested_dict(nested_dict):
         for key2 in next(iter(nested_dict.values()))
     }
     return nested_dict_T
+
+
+def get_mask(tensor, val=0.0):
+    '''
+    Compute a mask for a given tensor. By default, mask has value 0 where
+    tensor=val, and 1 otherwise.
+
+    CURRENTLY NOT WORKING AS INTENDED; DO NOT USE
+    '''
+
+    if np.isnan(val):
+        mask = ~torch.isnan(tensor)
+    else:
+        mask = torch.where(tensor == val, True, False)
+
+    return mask
 
 
 def invert_feature_scaling(tensor, data_min, data_max, is_log_transformed=False):
