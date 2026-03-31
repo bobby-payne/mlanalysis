@@ -187,6 +187,11 @@ def plot_timeseries(experiment, var, N, xy):
         round_negatives=False
     )[:, :, y, x]
     groundtruth_timeseries = experiment.data_scaled['groundtruth'][var][:, :, :, y, x].squeeze()
+    groundtruth_timeseries = torch.where(groundtruth_timeseries == 0, np.nan, groundtruth_timeseries) # fire season inactive
+    first_active_idx = torch.where(~torch.isnan(groundtruth_timeseries))[0][0]
+    last_active_idx = torch.where(~torch.isnan(groundtruth_timeseries))[0][-1]
+    if last_active_idx == first_active_idx:
+        last_active_idx = len(experiment.timestamps)-1
     sf = experiment.scale_factor
     try:
         covariate_timeseries = experiment.data_scaled['covariates'][var][:, :, :, y//sf, x//sf].squeeze()
@@ -195,6 +200,7 @@ def plot_timeseries(experiment, var, N, xy):
             covariate_timeseries = experiment.data_scaled['covariates'][var + '_c'][:, :, :, y//sf, x//sf].squeeze()
         except KeyError:
             covariate_timeseries = None
+    covariate_timeseries = torch.where(covariate_timeseries == 0, np.nan, covariate_timeseries) # fire season inactive
 
     # ranks for rank histogram
     ranks = compute_ranks(realizations_timeseries, groundtruth_timeseries, time_dim=0)
@@ -217,7 +223,7 @@ def plot_timeseries(experiment, var, N, xy):
         ax_top.plot(covariate_timeseries.numpy(), color="k", lw=0.8, ls=":", label="LR Conditioning")
     ax_top.set_ylabel(var.upper())
     xtick_idxs = [0, len(experiment.timestamps)//2, len(experiment.timestamps)-1]
-    ax_top.set_xlim(0, len(experiment.timestamps)-1)
+    ax_top.set_xlim(first_active_idx-2, last_active_idx+2)
     ax_top.set_xticks(xtick_idxs)
     ax_top.set_xticklabels([experiment.timestamps[i] for i in xtick_idxs])
     ax_top.legend(frameon=False, fontsize=8, ncols=2)
@@ -266,6 +272,11 @@ def plot_dailymax_timeseries(experiment, var, N, xy):
     realizations_timeseries = compute_daily_maximum(realizations_timeseries, axis=0)
     groundtruth_timeseries = experiment.data_scaled['groundtruth'][var][:, :, :, y, x].squeeze()
     groundtruth_timeseries = compute_daily_maximum(groundtruth_timeseries, axis=0)
+    groundtruth_timeseries = torch.where(groundtruth_timeseries == 0, np.nan, groundtruth_timeseries) # fire season inactive
+    first_active_idx = torch.where(~torch.isnan(groundtruth_timeseries))[0][0]
+    last_active_idx = torch.where(~torch.isnan(groundtruth_timeseries))[0][-1]
+    if last_active_idx == first_active_idx:
+        last_active_idx = N_days - 1
     sf = experiment.scale_factor
     try:
         covariate_timeseries = experiment.data_scaled['covariates'][var][:, :, :, y//sf, x//sf].squeeze()
@@ -276,6 +287,7 @@ def plot_dailymax_timeseries(experiment, var, N, xy):
             covariate_timeseries = None
     if covariate_timeseries is not None:
         covariate_timeseries = compute_daily_maximum(covariate_timeseries, axis=0)
+    covariate_timeseries = torch.where(covariate_timeseries == 0, np.nan, covariate_timeseries) # fire season inactive
     N_days = realizations_timeseries.shape[0]
 
     # ranks for rank histogram of daily maxima
@@ -298,10 +310,10 @@ def plot_dailymax_timeseries(experiment, var, N, xy):
     if covariate_timeseries is not None:
         ax_top.plot(covariate_timeseries.numpy(), color="k", lw=0.8, ls=":", label="LR Conditioning")
     ax_top.set_ylabel(var.upper())
-    ax_top.set_xlim(0, N_days - 1)
     xtick_idxs = [0, N_days//2, N_days-1]
     ax_top.set_xticks(xtick_idxs)
     ax_top.set_xticklabels([experiment.timestamps[i * 24][:10] for i in xtick_idxs])
+    ax_top.set_xlim(first_active_idx, last_active_idx)
     ax_top.legend(frameon=False, fontsize=8, ncols=2)
 
     # --- bottom-left: normalized rank histogram ---
