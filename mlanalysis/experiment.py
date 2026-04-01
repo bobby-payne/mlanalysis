@@ -4,7 +4,7 @@ from functools import cached_property, lru_cache
 
 from .config import get_config
 from .load import load_data, load_min_max, load_model, load_metrics
-from .utils import invert_feature_scaling
+from .utils import invert_feature_scaling, get_mask
 
 
 class Experiment:
@@ -20,11 +20,14 @@ class Experiment:
         self.year = year
         data = load_data(self.year)
         data_min_max = load_min_max()
+        hr_mask = get_mask(data[1][self.predictand_names[0]]) # assumes the first predictand is an FWI
+
         self.data = {
             'covariates': data[0],
             'groundtruth': data[1],
             'topography_lr': data[2],
             'topography_hr': data[3],
+            'mask': hr_mask,
         }
         self.timestamps = data[4]
         self.data_min = {
@@ -103,7 +106,7 @@ class Experiment:
         for key, value in self.data.items():
             if isinstance(value, dict):
                 for subkey, subvalue in value.items():
-                    print(f"  {key} - {subkey}: {subvalue[0].shape}")
+                    print(f"  {key} - {subkey}: {subvalue.shape}")
             else:
                 print(f"  {key}: {value.shape}")
         print("\nData Bounds:")
