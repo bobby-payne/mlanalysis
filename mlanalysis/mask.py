@@ -38,3 +38,28 @@ def apply_mask(data, mask):
         )
 
     return data
+
+
+def apply_mask_timeseries(data, mask):
+    '''
+    Apply a 1D mask to a 1D timeseries (data).
+    If data is 2D, then the mask is applied by iterating
+    over the first axis. (i.e., the first axis must be the time axis.)
+    '''
+
+    mask = mask.squeeze()
+    assert mask.shape.__len__() == 1, "Mask is not 1D."
+    mask = torch.where(mask, np.nan, 1)
+
+    if data.shape.__len__() == 1:
+        data = data * mask
+    elif data.shape.__len__() == 2:
+        n_realizations = data.shape[1]
+        mask = mask.unsqueeze(1).repeat(1, n_realizations)
+        data = data * mask
+    else:
+        raise IndexError(
+            f"Input data shape must be a 1D or 2D tensor. Received shape {data.shape}."
+        )
+
+    return data
