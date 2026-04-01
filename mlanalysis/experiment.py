@@ -4,7 +4,8 @@ from functools import cached_property, lru_cache
 
 from .config import get_config
 from .load import load_data, load_min_max, load_model, load_metrics
-from .utils import invert_feature_scaling, get_mask
+from .utils import invert_feature_scaling
+from .mask import get_mask
 
 
 class Experiment:
