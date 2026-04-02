@@ -61,6 +61,7 @@ def compute_statistics(data, prestacked=True, axis=0):
 
     return (data_mean, data_median, data_std, data_iqr, data_95p, data_99p)
 
+
 @lru_cache(maxsize=None)
 def compute_daily_maximum(tensor, axis=0):
     """
@@ -75,8 +76,16 @@ def compute_daily_maximum(tensor, axis=0):
         start_idx = day_idx * 24
         end_idx = start_idx + 24
         daily_slice = torch.index_select(tensor, axis, torch.arange(start_idx, end_idx))
+
+        # Replace NaNs with -inf so they don't affect max
+        daily_slice = torch.where(torch.isnan(daily_slice),
+                                  torch.tensor(-torch.inf, device=tensor.device, dtype=tensor.dtype),
+                                  daily_slice)
         daily_max.append(torch.max(daily_slice, dim=axis).values)
     daily_max = torch.stack(daily_max, dim=axis)
+    daily_max = torch.where(torch.isneginf(daily_max),  # Replace -inf with NaNs again
+                            torch.tensor(torch.nan, device=tensor.device, dtype=tensor.dtype),
+                            daily_max)
     return daily_max
 
 
