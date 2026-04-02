@@ -1,6 +1,7 @@
 import time
 import numpy as np
 import torch
+import warnings
 from functools import lru_cache
 
 
@@ -52,12 +53,15 @@ def compute_statistics(data, prestacked=True, axis=0):
     if not prestacked:
         data = np.stack(data, axis=axis)
 
-    data_mean = np.nanmean(data, axis=axis)
-    data_median = np.nanmedian(data, axis=axis)
-    data_std = np.nanstd(data, axis=axis)
-    data_iqr = np.nanpercentile(data, q=75, axis=axis) - np.nanpercentile(data, q=25, axis=axis)
-    data_95p = np.nanpercentile(data, q=95, axis=axis)
-    data_99p = np.nanpercentile(data, q=99, axis=axis)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+
+        data_mean = np.nanmean(data, axis=axis)
+        data_median = np.nanmedian(data, axis=axis)
+        data_std = np.nanstd(data, axis=axis)
+        data_iqr = np.nanpercentile(data, q=75, axis=axis) - np.nanpercentile(data, q=25, axis=axis)
+        data_95p = np.nanpercentile(data, q=95, axis=axis)
+        data_99p = np.nanpercentile(data, q=99, axis=axis)
 
     return (data_mean, data_median, data_std, data_iqr, data_95p, data_99p)
 
