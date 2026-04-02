@@ -1,10 +1,13 @@
 import os
+import time
+import warnings
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from matplotlib.gridspec import GridSpec
 
+from .mask import apply_mask_spatial, apply_mask_timeseries, apply_mask_spatial_timeseries
 from .utils import compute_daily_maximum, compute_statistics, compute_ranks
 from .spectral import get_rapsd, compute_realizations_spectra
 
@@ -72,8 +75,15 @@ def plot_realizations(experiment, var, N, time_idx, vmin=0, vmax=30):
                                                     N_realizations=N,
                                                     unscale=True,
                                                     round_negatives=False)
-    groundtruth_data = experiment.data_scaled['groundtruth']
+    groundtruth_data = experiment.data_scaled['groundtruth'][var][time_idx].squeeze()
+    mask_data = experiment.data['mask'][time_idx]
     datetime_str = experiment.timestamps[time_idx]
+
+    # Apply mask
+    use_mask = experiment.use_mask
+    if use_mask:
+        realizations = apply_mask_spatial(realizations, mask_data)
+        groundtruth_data = apply_mask_spatial(groundtruth_data, mask_data)
 
     # Figure constants
     fig, ax = plt.subplots(nrows=1, ncols=N+2, figsize=(8, 4))
@@ -94,8 +104,7 @@ def plot_realizations(experiment, var, N, time_idx, vmin=0, vmax=30):
     ax[N].axis('off')
 
     # Plot the ground truth
-    ground_truth = groundtruth_data[var][time_idx].squeeze()
-    refplot = ax[N+1].imshow(ground_truth, cmap=cmap, origin='lower', vmin=vmin, vmax=vmax)
+    refplot = ax[N+1].imshow(groundtruth_data, cmap=cmap, origin='lower', vmin=vmin, vmax=vmax)
     ax[N+1].set_title("Ground Truth", fontsize=ts)
     ax[N+1].axis('off')
 
@@ -180,19 +189,16 @@ def plot_realizations_spectra(experiment, var, time_idx, N):
 
 def plot_timeseries(experiment, var, N, xy):
 
-    x, y = (xy[0], xy[1])  # the grid point to extract time series from
+    # Get data for specified grid cell
+    x, y = (xy[0], xy[1])
+    sf = experiment.scale_factor
     realizations_timeseries = experiment.generate_realization_timeseries(
         N_realizations=N,
         unscale=True,
         round_negatives=False
     )[:, :, y, x]
     groundtruth_timeseries = experiment.data_scaled['groundtruth'][var][:, :, :, y, x].squeeze()
-    groundtruth_timeseries = torch.where(groundtruth_timeseries == 0, np.nan, groundtruth_timeseries) # fire season inactive
-    first_active_idx = torch.where(~torch.isnan(groundtruth_timeseries))[0][0]
-    last_active_idx = torch.where(~torch.isnan(groundtruth_timeseries))[0][-1]
-    if last_active_idx == first_active_idx:
-        last_active_idx = len(experiment.timestamps)-1
-    sf = experiment.scale_factor
+    mask_timeseries = experiment.data['mask'][:, :, :, y, x].squeeze()
     try:
         covariate_timeseries = experiment.data_scaled['covariates'][var][:, :, :, y//sf, x//sf].squeeze()
     except KeyError:
@@ -200,7 +206,14 @@ def plot_timeseries(experiment, var, N, xy):
             covariate_timeseries = experiment.data_scaled['covariates'][var + '_c'][:, :, :, y//sf, x//sf].squeeze()
         except KeyError:
             covariate_timeseries = None
-    covariate_timeseries = torch.where(covariate_timeseries == 0, np.nan, covariate_timeseries) # fire season inactive
+
+    # Apply masks
+    use_mask = experiment.use_mask
+    if use_mask:
+        groundtruth_timeseries = apply_mask_timeseries(groundtruth_timeseries, mask_timeseries)
+        realizations_timeseries = apply_mask_timeseries(realizations_timeseries, mask_timeseries)
+        if covariate_timeseries is not None:
+            covariate_timeseries = torch.where(covariate_timeseries == 0, np.nan, covariate_timeseries)
 
     # ranks for rank histogram
     ranks = compute_ranks(realizations_timeseries, groundtruth_timeseries, time_dim=0)
@@ -212,6 +225,11 @@ def plot_timeseries(experiment, var, N, xy):
     ax_top = fig.add_subplot(gs[0, :])   # long plot on top
     ax_bl = fig.add_subplot(gs[1, 0])    # bottom-left
     ax_br = fig.add_subplot(gs[1, 1])    # bottom-right
+
+    first_active_idx = torch.where(~torch.isnan(groundtruth_timeseries))[0][0]
+    last_active_idx = torch.where(~torch.isnan(groundtruth_timeseries))[0][-1]
+    if last_active_idx == first_active_idx:
+        last_active_idx = len(experiment.timestamps)-1
 
     # --- top plot: time series ---
     for i in range(N):
@@ -263,21 +281,17 @@ def plot_dailymax_timeseries(experiment, var, N, xy):
     # generate dailymax timeseries
     if not experiment.timestamps[0][-2:] == '00':
         raise ValueError("First time index does not correspond to hour 00. Time series of daily maxima cannot be computed.")
-    x, y = (xy[0], xy[1])  # the grid point to extract time series from
+
+    # Get data for specified grid cell
+    x, y = (xy[0], xy[1])
+    sf = experiment.scale_factor
     realizations_timeseries = experiment.generate_realization_timeseries(
         N_realizations=N,
         unscale=True,
         round_negatives=False
     )[:, :, y, x]
-    realizations_timeseries = compute_daily_maximum(realizations_timeseries, axis=0)
     groundtruth_timeseries = experiment.data_scaled['groundtruth'][var][:, :, :, y, x].squeeze()
-    groundtruth_timeseries = compute_daily_maximum(groundtruth_timeseries, axis=0)
-    groundtruth_timeseries = torch.where(groundtruth_timeseries == 0, np.nan, groundtruth_timeseries) # fire season inactive
-    first_active_idx = torch.where(~torch.isnan(groundtruth_timeseries))[0][0]
-    last_active_idx = torch.where(~torch.isnan(groundtruth_timeseries))[0][-1]
-    if last_active_idx == first_active_idx:
-        last_active_idx = N_days - 1
-    sf = experiment.scale_factor
+    mask_timeseries = experiment.data['mask'][:, :, :, y, x].squeeze()
     try:
         covariate_timeseries = experiment.data_scaled['covariates'][var][:, :, :, y//sf, x//sf].squeeze()
     except KeyError:
@@ -285,12 +299,22 @@ def plot_dailymax_timeseries(experiment, var, N, xy):
             covariate_timeseries = experiment.data_scaled['covariates'][var + '_c'][:, :, :, y//sf, x//sf].squeeze()
         except KeyError:
             covariate_timeseries = None
+
+    # Apply masks
+    use_mask = experiment.use_mask
+    if use_mask:
+        groundtruth_timeseries = apply_mask_timeseries(groundtruth_timeseries, mask_timeseries)
+        realizations_timeseries = apply_mask_timeseries(realizations_timeseries, mask_timeseries)
+        if covariate_timeseries is not None:
+            covariate_timeseries = torch.where(covariate_timeseries == 0, np.nan, covariate_timeseries)
+
+    # Compute daily maxima
+    realizations_timeseries = compute_daily_maximum(realizations_timeseries, axis=0)
+    groundtruth_timeseries = compute_daily_maximum(groundtruth_timeseries, axis=0)
     if covariate_timeseries is not None:
         covariate_timeseries = compute_daily_maximum(covariate_timeseries, axis=0)
-    covariate_timeseries = torch.where(covariate_timeseries == 0, np.nan, covariate_timeseries) # fire season inactive
-    N_days = realizations_timeseries.shape[0]
 
-    # ranks for rank histogram of daily maxima
+    # ranks for rank histogram
     ranks = compute_ranks(realizations_timeseries, groundtruth_timeseries, time_dim=0)
 
     # Plot time series and rank histogram
@@ -300,6 +324,12 @@ def plot_dailymax_timeseries(experiment, var, N, xy):
     ax_top = fig.add_subplot(gs[0, :])   # long plot on top
     ax_bl = fig.add_subplot(gs[1, 0])    # bottom-left
     ax_br = fig.add_subplot(gs[1, 1])    # bottom-right
+
+    N_days = realizations_timeseries.shape[0]
+    first_active_idx = torch.where(~torch.isnan(groundtruth_timeseries))[0][0]
+    last_active_idx = torch.where(~torch.isnan(groundtruth_timeseries))[0][-1]
+    if last_active_idx == first_active_idx:
+        last_active_idx = N_days - 1
 
     # --- top plot: time series ---
     for i in range(N):
@@ -313,7 +343,7 @@ def plot_dailymax_timeseries(experiment, var, N, xy):
     xtick_idxs = [0, N_days//2, N_days-1]
     ax_top.set_xticks(xtick_idxs)
     ax_top.set_xticklabels([experiment.timestamps[i * 24][:10] for i in xtick_idxs])
-    ax_top.set_xlim(first_active_idx, last_active_idx)
+    ax_top.set_xlim(first_active_idx-2, last_active_idx+2)
     ax_top.legend(frameon=False, fontsize=8, ncols=2)
 
     # --- bottom-left: normalized rank histogram ---
@@ -358,6 +388,15 @@ def plot_pixelwise_statistics(experiment, var, N, daily_max=False):
         round_negatives=True,
     )
     groundtruth_timeseries = experiment.data_scaled['groundtruth'][var].squeeze()
+    mask_timeseries = experiment.data['mask'].squeeze()
+
+    # Mask
+    use_mask = experiment.use_mask
+    if use_mask:
+        groundtruth_timeseries = apply_mask_spatial_timeseries(groundtruth_timeseries, mask_timeseries)
+        realizations_timeseries = apply_mask_spatial_timeseries(realizations_timeseries, mask_timeseries)
+
+    # Compute daily max
     if daily_max:
         realizations_timeseries = compute_daily_maximum(realizations_timeseries, axis=0)
         groundtruth_timeseries = compute_daily_maximum(groundtruth_timeseries, axis=0)
@@ -386,7 +425,9 @@ def plot_pixelwise_statistics(experiment, var, N, daily_max=False):
         '95 Percentile': (p95_field_sr, p95_field_gt),
         '99 Percentile': (p99_field_sr, p99_field_gt)
     }
-    stats = {statname: (np.nanmean(fields[0], axis=0), fields[1]) for statname, fields in stats.items()}
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        stats = {statname: (np.nanmean(fields[0], axis=0), fields[1]) for statname, fields in stats.items()}
 
     # ===============================
     # Figure layout
@@ -504,8 +545,8 @@ def plot_pixelwise_statistics(experiment, var, N, daily_max=False):
 
     for i, (axis, statname) in enumerate(ax_hist_list):
 
-        min_val = np.nanmin([stats[statname][0].min(), stats[statname][1].min()])
-        max_val = np.nanmax([stats[statname][0].max(), stats[statname][1].max()])
+        min_val = np.nanmin([np.nanmin(stats[statname][0]), np.nanmin(stats[statname][1])])
+        max_val = np.nanmax([np.nanmax(stats[statname][0]), np.nanmax(stats[statname][1])])
         bins = np.linspace(min_val, max_val, nbins)
 
         axis.hist(stats[statname][1].flatten(),
