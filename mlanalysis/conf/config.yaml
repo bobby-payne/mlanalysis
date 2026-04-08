@@ -8,6 +8,7 @@ output_fig_dpi: 150
 split: "test" # options: "train", "validation", "test"
 seed: null
 n_realizations: 50
+use_mask: False
 which_gpu: 0
 years:
   - 2006

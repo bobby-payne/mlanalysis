@@ -1,6 +1,7 @@
+import time
 import numpy as np
 import torch
-import operator
+import warnings
 from functools import lru_cache
 
 
@@ -32,22 +33,6 @@ def transpose_nested_dict(nested_dict):
     return nested_dict_T
 
 
-def get_mask(tensor, val=0.0):
-    '''
-    Compute a mask for a given tensor. By default, mask has value 0 where
-    tensor=val, and 1 otherwise.
-
-    CURRENTLY NOT WORKING AS INTENDED; DO NOT USE
-    '''
-
-    if np.isnan(val):
-        mask = ~torch.isnan(tensor)
-    else:
-        mask = torch.where(tensor == val, True, False)
-
-    return mask
-
-
 def invert_feature_scaling(tensor, data_min, data_max, is_log_transformed=False):
     """Undo feature scaling to get back to original data range."""
     if is_log_transformed:
@@ -68,14 +53,18 @@ def compute_statistics(data, prestacked=True, axis=0):
     if not prestacked:
         data = np.stack(data, axis=axis)
 
-    data_mean = np.nanmean(data, axis=axis)
-    data_median = np.nanmedian(data, axis=axis)
-    data_std = np.nanstd(data, axis=axis)
-    data_iqr = np.nanpercentile(data, q=75, axis=axis) - np.nanpercentile(data, q=25, axis=axis)
-    data_95p = np.nanpercentile(data, q=95, axis=axis)
-    data_99p = np.nanpercentile(data, q=99, axis=axis)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+
+        data_mean = np.nanmean(data, axis=axis)
+        data_median = np.nanmedian(data, axis=axis)
+        data_std = np.nanstd(data, axis=axis)
+        data_iqr = np.nanpercentile(data, q=75, axis=axis) - np.nanpercentile(data, q=25, axis=axis)
+        data_95p = np.nanpercentile(data, q=95, axis=axis)
+        data_99p = np.nanpercentile(data, q=99, axis=axis)
 
     return (data_mean, data_median, data_std, data_iqr, data_95p, data_99p)
+
 
 @lru_cache(maxsize=None)
 def compute_daily_maximum(tensor, axis=0):
@@ -91,8 +80,16 @@ def compute_daily_maximum(tensor, axis=0):
         start_idx = day_idx * 24
         end_idx = start_idx + 24
         daily_slice = torch.index_select(tensor, axis, torch.arange(start_idx, end_idx))
+
+        # Replace NaNs with -inf so they don't affect max
+        daily_slice = torch.where(torch.isnan(daily_slice),
+                                  torch.tensor(-torch.inf, device=tensor.device, dtype=tensor.dtype),
+                                  daily_slice)
         daily_max.append(torch.max(daily_slice, dim=axis).values)
     daily_max = torch.stack(daily_max, dim=axis)
+    daily_max = torch.where(torch.isneginf(daily_max),  # Replace -inf with NaNs again
+                            torch.tensor(torch.nan, device=tensor.device, dtype=tensor.dtype),
+                            daily_max)
     return daily_max
 
 
