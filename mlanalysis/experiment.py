@@ -2,7 +2,6 @@ import torch
 import numpy as np
 from functools import cached_property, lru_cache
 
-from .config import get_config
 from .load import load_data, load_min_max, load_model, load_metrics
 from .utils import invert_feature_scaling
 from .mask import get_mask
@@ -10,17 +9,17 @@ from .mask import get_mask
 
 class Experiment:
 
-    def __init__(self, year=None):
+    def __init__(self, config):
 
         # Each config parameter becomes an attribute of the Experiment instance
-        self.config = get_config()
+        self.config = config
         for key, value in self.config.data.items():
             setattr(self, key, value)
 
         # Data and their bounds become attributes of the Experiment instance
-        self.year = year
-        data = load_data(self.year)
-        data_min_max = load_min_max()
+        self.year = config['year']
+        data = load_data(self.config)
+        data_min_max = load_min_max(self.config)
         hr_mask = get_mask(data[1][self.predictand_names[0]]) # assumes the first predictand is an FWI
 
         self.data = {
@@ -43,8 +42,8 @@ class Experiment:
             'topography_lr': data_min_max[2]['max'],
             'topography_hr': data_min_max[3]['max'],
         }
-        self.model = load_model()  # The actual PyTorch model
-        self.metrics = load_metrics()  # Training and validation metrics
+        self.model = load_model(self.config)  # The actual PyTorch model
+        self.metrics = load_metrics(self.config)  # Training and validation metrics
 
     @cached_property
     def data_scaled(self):

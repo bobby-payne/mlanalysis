@@ -1,0 +1,14 @@
+
+experiment_name: "FWI-2026-Apr29-ideal"
+path_to_experiments: "/home/rpayne/data-rpayne/trained-models/sf8/WGAN/CINT/"
+path_to_zarr: "/home/rpayne/data-rpayne/proc/WRF-USASK/cint/" # path in which the .zarr files are stored
+covariate_names:
+  - "tas_c"
+  - "uas_c"
+  - "vas_c"
+  - "psfc_c"
+  - "q2_c"
+  - "pr_c"
+  - "fwi_c"
+predictand_names:
+  - "fwi"

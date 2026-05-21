@@ -2,7 +2,7 @@ import os
 import time
 import gc
 
-from .config import get_config
+from .config import get_config_filenames, get_config
 
 
 def main():
@@ -10,6 +10,10 @@ def main():
     start_time = time.time()
 
     try:
+
+        # =================================================================
+        # RUNTIME & SETUP
+        # =================================================================
 
         # Select visible GPUs (must occur before calling Experiment class)
         which_gpu = get_config()['which_gpu']
@@ -31,18 +35,34 @@ def main():
             plot_spectrogram,
         )
 
+        # get general settings config
+        config_gen = get_config("conf/settings.yaml")
+
         # Set random seed for reproducibility
-        set_seed(get_config()['seed'])
+        set_seed(config_gen['seed'])
 
-        # Loop over years (if multiple) and generate plots for each year
-        for year in get_config()['years']:
+        # Create an experiment instance for each experiment config
+        experiment_dict = {}
+        for config_file in get_config_filenames():
 
-            # Plot the training and validation metrics
-            experiment = Experiment(year=year)
+            # open config for this experiment and append the general settings config
+            config_exp = get_config(f"conf/experiments/{config_file}")
+            config_exp.data.update(config_gen.data)
+
+            # create experiment instance and add to dict
+            experiment_name = config_exp['experiment_name']
+            experiment = Experiment(config_exp)
             experiment.summary()
+            experiment_dict[experiment_name] = experiment
 
-            # Generate plots
-            print("Generating plots...")
+        # =================================================================
+        # INDIVIDUAL-EXPERIMENT ANALYSIS & FIGURES
+        # =================================================================
+
+        for experiment_name, experiment in experiment_dict.items():
+
+            print("Generating solo figures for experiment:", experiment_name)
+
             N = experiment.n_realizations
             plot_metrics(experiment)
 
@@ -54,13 +74,19 @@ def main():
                 plot_pixelwise_statistics(experiment, var=var, N=N, daily_max=True)
                 plot_time_avg_spectrum(experiment, var=var, N=N, daily_max=False)
                 plot_time_avg_spectrum(experiment, var=var, N=N, daily_max=True)
-                plot_spectrogram(experiment, var=var, N=N, daily_max=False)
-                plot_spectrogram(experiment, var=var, N=N, daily_max=True)
+                # plot_spectrogram(experiment, var=var, N=N, daily_max=False)
+                # plot_spectrogram(experiment, var=var, N=N, daily_max=True)
 
-                for loc in experiment.loc_idxs:  # Location-specific plots
+                for loc in experiment.loc_idxs:  # Pixel-specific plots
 
                     plot_timeseries(experiment, var=var, N=N, xy=loc)
                     plot_dailymax_timeseries(experiment, var=var, N=N, xy=loc)
+
+        # =================================================================
+        # SHARED-EXPERIMENT ANALYSIS & FIGURES
+        # =================================================================
+
+        # TBD
 
     finally:
 
