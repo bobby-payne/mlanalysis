@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 class Config:
-    def __init__(self, relative_path="conf/config.yaml"):
+    def __init__(self, relative_path):
         # Resolve path relative to this file, not the working directory
         base_dir = Path(__file__).resolve().parent
         config_path = (base_dir / relative_path).resolve()
@@ -15,12 +15,19 @@ class Config:
         return self.data[key]
 
 
-# Singleton pattern to avoid rereading the config every time
-_config_instance = None
+def get_config_filenames(relative_path="conf/experiments/"):
+    '''
+    Get a list of configuration filenames in the specified directory.
+    '''
+    base_dir = Path(__file__).resolve().parent
+    config_dir = (base_dir / relative_path).resolve()
+    return [f.name for f in config_dir.glob("*.yaml")]
 
 
-def get_config(relative_path="conf/config.yaml"):
-    global _config_instance
-    if _config_instance is None:
-        _config_instance = Config(relative_path)
-    return _config_instance
+def get_config(relative_path="conf/settings.yaml"):
+    '''
+    Get the configuration instance, creating it if necessary.
+    If no path provided, defaults to "conf/settings.yaml" relative to this file.
+    '''
+    config_instance = Config(relative_path)
+    return config_instance

@@ -4,14 +4,12 @@ import torch
 import numpy as np
 from glob import glob
 
-from .config import get_config
 from .utils import transpose_nested_dict
 
 
-def get_data_years():
+def get_data_years(config):
 
     # Read from config
-    config = get_config()
     path_to_zarr = config['path_to_zarr']
     split = config['split']
 
@@ -30,10 +28,13 @@ def get_data_years():
     return years
 
 
-def load_data (year=None):
+def load_data (config):
+    '''
+    Load data from disk based on the provided configuration.
+    '''
 
     # Read from config
-    config = get_config()
+    year = config['year']
     path_to_zarr = config['path_to_zarr']
     split = config['split']
     subset_idxs = config['subset_idxs']
@@ -77,10 +78,9 @@ def load_data (year=None):
     return covariate_data, groundtruth_data, topography_lr, topography_hr, datetimes
 
 
-def load_min_max ():
+def load_min_max (config):
 
     # Read from config
-    config = get_config()
     path_to_zarr = config['path_to_zarr']
     split = config['split']
     covariate_names = config['covariate_names']
@@ -119,10 +119,9 @@ def load_min_max ():
     return covariate_data_min_max, groundtruth_data_min_max, topography_lr_min_max, topography_hr_min_max
 
 
-def load_model():
+def load_model(config):
 
     # Read from config
-    config = get_config()
     experiment_name = config['experiment_name']
     path_to_experiments = config['path_to_experiments']
     path_to_model = os.path.join(path_to_experiments, experiment_name, "generator.pt")
@@ -133,10 +132,9 @@ def load_model():
     return model
 
 
-def load_metrics():
+def load_metrics(config):
 
     # Read from config
-    config = get_config()
     experiment_name = config['experiment_name']
     path_to_experiments = config['path_to_experiments']
     path_to_metrics = os.path.join(path_to_experiments, experiment_name)

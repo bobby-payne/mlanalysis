@@ -1,0 +1,15 @@
+
+path_to_output: "/sapho/rpayne/mlanalysis/output/" # path in which to store output figures
+output_fig_format: "png"
+output_fig_dpi: 150
+split: "test" # options: "train", "validation", "test"
+seed: null
+n_realizations: 50
+use_mask: True
+which_gpu: 0
+year: 2006 # year of data to use for plots. must be within split data
+subset_idxs: # first and last time indices of the data to use for plots. data outside this range will be ignored.
+  - 2880
+  - 5856
+loc_idxs:
+  - [84, 56]
